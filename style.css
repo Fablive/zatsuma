@@ -8,7 +8,7 @@
   --ink: #171717;
   --text: #515151;
   --muted: #8e8e8e;
-  /* satsuma brand — mascot + LEFT TO GO / VALUE semantics only */
+  /* satsuma brand – mascot + LEFT TO GO / VALUE semantics only */
   --satsuma: #f5822a;
   --leaf: #5a9e3d;
   /* bright category colours (the book palette) */
@@ -79,7 +79,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .goalchip .chip b { color: var(--rust); font-weight: 600; letter-spacing: 0.06em; }
 .goalchip .chip svg { width: 12px; height: 12px; opacity: 0.5; }
 
-/* inline goal setter — shows only while the month has no goal */
+/* inline goal setter – shows only while the month has no goal */
 .goalsetter {
   margin: 12px 18px 0; background: #fff; border: 1px solid var(--hairline);
   border-radius: var(--radius); padding: 14px 16px; text-align: center;
@@ -275,10 +275,16 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
 }
 .gate .glogo { width: 108px; height: 98px; }
 .gate .gword { font-weight: 500; color: var(--rust); font-size: 30px; letter-spacing: 0.14em; }
-.gate .gtag { font-size: 14.5px; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 14px; }
+.gate .gtag { font-size: 14.5px; color: var(--rust-dark); letter-spacing: 0.04em; margin-top: -6px; }
+.gate .gdots { display: flex; gap: 8px; margin-bottom: 4px; }
+.gate .gdots span { width: 7px; height: 7px; border-radius: 50%; display: block; }
+.gate .gdots span:nth-child(1) { background: var(--cat-pink); }
+.gate .gdots span:nth-child(2) { background: var(--cat-yellow); }
+.gate .gdots span:nth-child(3) { background: var(--leaf); }
+.gate .gdots span:nth-child(4) { background: var(--cat-cyan); }
 .gate input[type="email"] {
   font-family: inherit; font-size: 16px; color: var(--ink); text-align: center;
-  border: 1px solid var(--hairline); border-radius: 12px; padding: 12px 16px;
+  border: 1.5px solid rgba(168,95,46,0.25); border-radius: 12px; padding: 12px 16px;
   background: var(--paper); width: 100%; max-width: 300px;
 }
 .gate input[type="email"]:focus { outline: none; border-color: var(--rust); }
@@ -286,7 +292,7 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
   display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text);
   cursor: pointer;
 }
-.gate .consent input { accent-color: var(--rust); width: 16px; height: 16px; }
+.gate .consent input { accent-color: var(--cat-pink); width: 16px; height: 16px; }
 .gate .gnote { font-size: 12px; color: var(--muted); text-align: center; max-width: 260px; line-height: 1.5; }
 .gate .gerr { font-size: 13px; color: var(--cat-pink); min-height: 18px; }
 

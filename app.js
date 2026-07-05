@@ -1,4 +1,4 @@
-/* Zatsuma — app machinery. Ships clean: no data baked in.
+/* Zatsuma – app machinery. Ships clean: no data baked in.
    Open with ?demo=1 to play with seeded sample data (kept in a separate storage key). */
 
 const DEMO = new URLSearchParams(location.search).has('demo');
@@ -7,8 +7,8 @@ const LS_KEY = DEMO ? 'zatsuma-demo' : 'zatsuma-v1';
 const CAT_COLOURS = ['#e62d64', '#ec008b', '#119fe0', '#2d5be6', '#6a4fd8', '#00a887', '#94c11f', '#ffce4e'];
 const CAT_EMOJI = ['🎨','💬','🎤','💼','✍️','📚','🛍️','🎁','💐','🏠','🚗','✈️','🍽️','☕','💻','📈','🧘','💅','🐾','🎬','🎵','🌿','✨','💎'];
 const DONUT_C = 2 * Math.PI * 38;
-/* VALUE is its own built-in category — leaf green, no user category needed.
-   Icon is a drawn leaf (Fab's pick — crisper than any emoji at row size). */
+/* VALUE is its own built-in category – leaf green, no user category needed.
+   Icon is a drawn leaf (Fab's pick – crisper than any emoji at row size). */
 const VALUE_CAT = { id: '__value', name: 'Value', color: '#5a9e3d',
   icon: `<svg viewBox="0 0 24 24" style="width:22px;height:22px;display:block">
     <path d="M20 4 C10 4 4 10 4 18 C4 19 4.4 20 5 20 C5.5 20 6 19.6 6.3 19 C8 15 11 11.5 15 9.5 C11.5 12.5 9 16 8 19.5 C8.6 19.8 9.3 20 10 20 C16 20 20 13 20 4 Z" fill="#5a9e3d"/>
@@ -155,15 +155,15 @@ function renderHome() {
   if (!db.entries.length && !goal) {
     cheer = `<div class="cheer neutral">Tap + to add the first money that found you 🍊</div>`;
   } else if (!goal) {
-    cheer = total > 0 ? `<div class="cheer">${fmt(total)} tracked this month — beautiful ✨</div>` : '';
+    cheer = total > 0 ? `<div class="cheer">${fmt(total)} tracked this month – beautiful ✨</div>` : '';
   } else if (total >= goal) {
-    cheer = `<div class="cheer">Goal reached — ${fmt(total)}! 🎉</div>`;
+    cheer = `<div class="cheer">Goal reached – ${fmt(total)}! 🎉</div>`;
   } else if (total / goal >= 0.75) {
-    cheer = `<div class="cheer">Only ${fmt(left)} to go — you can do this! 💥</div>`;
+    cheer = `<div class="cheer">Only ${fmt(left)} to go – you can do this! 💥</div>`;
   } else if (total / goal >= 0.5) {
-    cheer = `<div class="cheer">Past halfway — ${fmt(left)} to go! 🔥</div>`;
+    cheer = `<div class="cheer">Past halfway – ${fmt(left)} to go! 🔥</div>`;
   } else {
-    cheer = `<div class="cheer">${fmt(left)} to go — watch it roll in 🍊</div>`;
+    cheer = `<div class="cheer">${fmt(left)} to go – watch it roll in 🍊</div>`;
   }
 
   $view.innerHTML = `<div class="screen">
@@ -242,7 +242,7 @@ function renderGoals() {
   $view.innerHTML = `<div class="screen">
     <div class="screen-title">GOALS</div>
     <div class="addgoal"><button class="btn small ghost" data-act="add-goal">+ SET A GOAL</button></div>
-    ${rows || '<div class="empty">No goals yet — set one and watch the money roll in 🍊</div>'}
+    ${rows || '<div class="empty">No goals yet – set one and watch the money roll in 🍊</div>'}
   </div>`;
 }
 
@@ -397,10 +397,10 @@ function refreshEntrySheet() {
   $sheet.querySelectorAll('.seg button').forEach(b =>
     b.classList.toggle('on', b.dataset.kind === s.kind));
   document.getElementById('kind-hint').textContent = s.kind === 'value'
-    ? 'Value that came to you — gifts, vouchers, discounts, freebies'
+    ? 'Value that came to you – gifts, vouchers, discounts, freebies'
     : 'Money that found you';
 
-  /* VALUE is its own category — no picker needed */
+  /* VALUE is its own category – no picker needed */
   document.getElementById('catsec').hidden = s.kind === 'value';
 
   const grid = document.getElementById('catgrid');
@@ -586,11 +586,12 @@ function renderGate() {
     ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
     <div class="gword">ZATSUMA</div>
     <div class="gtag">track the money that finds you</div>
+    <div class="gdots"><span></span><span></span><span></span><span></span></div>
     <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email">
-    <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🍊</label>
+    <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
-    <div class="gnote">No passwords here — soon this will email you a magic login link.</div>
+    <div class="gnote">No passwords here – soon this will email you a magic login link.</div>
   `;
   gate.hidden = false;
   document.getElementById('acc-go').addEventListener('click', () => {

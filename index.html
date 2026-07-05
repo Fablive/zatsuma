@@ -83,13 +83,14 @@
   .goalchip .chip svg { width: 12px; height: 12px; opacity: 0.5; }
 
   /* ---------- donut ---------- */
-  .donut-wrap { display: flex; justify-content: center; padding: 14px 0 2px; position: relative; }
-  .donut { width: 232px; height: 232px; }
+  .donut-wrap { display: flex; justify-content: center; padding: 14px 0 2px; }
+  .donut-box { position: relative; width: 232px; height: 232px; }
+  .donut { width: 232px; height: 232px; display: block; }
   .donut-centre {
-    position: absolute; inset: 0; display: flex; flex-direction: column;
+    position: absolute; inset: 0; display: flex;
     align-items: center; justify-content: center; pointer-events: none;
   }
-  .donut-centre .amt { font-weight: 500; font-size: 46px; line-height: 1; color: var(--ink); }
+  .donut-centre .amt { font-weight: 500; font-size: 37px; line-height: 1; color: var(--ink); letter-spacing: 0.01em; }
 
   .legend {
     display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;
@@ -151,8 +152,8 @@
       <!-- traced from Fab's logo draft: squashed satsuma, flat bottom, V leaves, cartoon eyes -->
       <path d="M32 13 C46 13 59 20 59 36 C59 49 47 55 32 55 C17 55 5 49 5 36 C5 20 18 13 32 13 Z" fill="#f5822a"/>
       <path d="M31.2 14 L32.8 14 L32.6 8 L31.4 8 Z" fill="#c96a1e"/>
-      <path d="M30 9 C24 1 15 1 11 5 C15 12 24 14 30 9 Z" fill="#4e9440" transform="rotate(-8 30 9)"/>
-      <path d="M34 9 C40 1 49 1 53 5 C49 12 40 14 34 9 Z" fill="#5aa74a" transform="rotate(8 34 9)"/>
+      <path d="M30.5 11 C29 3 23 -2 17 0 C17 7 22 12 30.5 11 Z" fill="#4e9440" transform="rotate(-14 30 10)"/>
+      <path d="M33.5 11 C35 3 41 -2 47 0 C47 7 42 12 33.5 11 Z" fill="#5aa74a" transform="rotate(14 34 10)"/>
       <circle cx="24.5" cy="33" r="5" fill="#fff"/>
       <circle cx="25.5" cy="33.5" r="2.7" fill="#221510"/>
       <circle cx="24.4" cy="32.2" r="0.9" fill="#fff"/>
@@ -171,12 +172,13 @@
   </div>
 
   <div class="goalchip">
-    <span class="chip">GOAL <b>10,000</b>
+    <span class="chip">GOAL <b>20,000</b>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4L8 20l-5 1 1-5L17 3z"/></svg>
     </span>
   </div>
 
   <div class="donut-wrap">
+   <div class="donut-box">
     <svg class="donut" viewBox="0 0 100 100">
       <circle r="38" cx="50" cy="50" fill="none" stroke="#f1ece1" stroke-width="13"/>
       <circle r="38" cx="50" cy="50" fill="none" stroke="#e62d64" stroke-width="13"
@@ -187,8 +189,9 @@
         stroke-dasharray="59.7 179.1" stroke-dashoffset="-179.1" transform="rotate(-90 50 50)"/>
     </svg>
     <div class="donut-centre">
-      <div class="amt">8,450</div>
+      <div class="amt">18,450</div>
     </div>
+   </div>
   </div>
 
   <div class="legend">
@@ -198,7 +201,7 @@
   </div>
 
   <div class="stats">
-    <div class="stat money"><div class="k">MONEY</div><div class="v">8,450</div></div>
+    <div class="stat money"><div class="k">MONEY</div><div class="v">18,450</div></div>
     <div class="stat value"><div class="k">VALUE</div><div class="v">320</div></div>
     <div class="stat left"><div class="k">LEFT TO GO</div><div class="v">1,550</div></div>
   </div>

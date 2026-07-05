@@ -1,0 +1,553 @@
+/* Zatsuma — app machinery. Ships clean: no data baked in.
+   Open with ?demo=1 to play with seeded sample data (kept in a separate storage key). */
+
+const DEMO = new URLSearchParams(location.search).has('demo');
+const LS_KEY = DEMO ? 'zatsuma-demo' : 'zatsuma-v1';
+
+const CAT_COLOURS = ['#e62d64', '#ec008b', '#119fe0', '#2d5be6', '#6a4fd8', '#00a887', '#94c11f', '#ffce4e'];
+const CAT_EMOJI = ['🎨','💬','🎤','💼','✍️','📚','🛍️','🎁','💐','🏠','🚗','✈️','🍽️','☕','💻','📈','🧘','💅','🐾','🎬','🎵','🌿','✨','💎'];
+const DONUT_C = 2 * Math.PI * 38;
+
+/* ---------- data ---------- */
+
+let db = load();
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS_KEY));
+    if (d && d.categories && d.entries && d.goals) return d;
+  } catch (e) {}
+  return { categories: [], entries: [], goals: {} };
+}
+function save() { localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+if (DEMO && !db.entries.length && !db.categories.length) {
+  const mk = monthKey(new Date());
+  const d = n => `${mk}-${String(n).padStart(2, '0')}`;
+  const [studio, coaching, speaking] = [
+    { id: uid(), name: 'Studio', color: '#e62d64', icon: '🎨' },
+    { id: uid(), name: 'Coaching', color: '#119fe0', icon: '💬' },
+    { id: uid(), name: 'Speaking', color: '#ffce4e', icon: '🎤' },
+  ];
+  db.categories = [studio, coaching, speaking];
+  db.entries = [
+    { id: uid(), amount: 5200, kind: 'money', catId: studio.id, date: d(2) },
+    { id: uid(), amount: 2180, kind: 'money', catId: studio.id, date: d(3) },
+    { id: uid(), amount: 3958, kind: 'money', catId: coaching.id, date: d(1) },
+    { id: uid(), amount: 2500, kind: 'money', catId: coaching.id, date: d(4) },
+    { id: uid(), amount: 4612, kind: 'money', catId: speaking.id, date: d(4) },
+    { id: uid(), amount: 320, kind: 'value', catId: coaching.id, date: d(3) },
+  ];
+  db.goals = { [mk]: 20000 };
+  save();
+}
+
+/* ---------- helpers ---------- */
+
+function monthKey(dt) { return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`; }
+function monthDate(key) { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1); }
+function monthLabel(key) {
+  return monthDate(key).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
+}
+function shiftMonth(key, delta) {
+  const d = monthDate(key); d.setMonth(d.getMonth() + delta); return monthKey(d);
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function fmt(n) { return n.toLocaleString('en-GB', { maximumFractionDigits: 2 }); }
+function parseAmount(s) {
+  const n = parseFloat(String(s).replace(/,/g, '').trim());
+  return isFinite(n) && n > 0 ? n : null;
+}
+function cat(id) { return db.categories.find(c => c.id === id); }
+function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+function entriesInMonth(mk) { return db.entries.filter(e => e.date.startsWith(mk)); }
+function entriesInRange(from, to) { return db.entries.filter(e => e.date >= from && e.date <= to); }
+function sum(list) { return list.reduce((t, e) => t + e.amount, 0); }
+function moneyOf(list) { return list.filter(e => e.kind === 'money'); }
+function valueOf(list) { return list.filter(e => e.kind === 'value'); }
+
+/* per-category money totals, descending */
+function catTotals(list) {
+  const map = {};
+  for (const e of list) map[e.catId] = (map[e.catId] || 0) + e.amount;
+  return Object.entries(map)
+    .map(([id, total]) => ({ cat: cat(id), total }))
+    .filter(x => x.cat)
+    .sort((a, b) => b.total - a.total);
+}
+
+/* ---------- view state ---------- */
+
+const viewParam = new URLSearchParams(location.search).get('view');
+let view = ['home', 'entries', 'goals', 'reports'].includes(viewParam) ? viewParam : 'home';
+let curMonth = monthKey(new Date());
+let rep = { type: 'month', anchor: monthKey(new Date()), from: '', to: '' };
+
+const $view = document.getElementById('view');
+const $sheet = document.getElementById('sheet');
+const $scrim = document.getElementById('scrim');
+
+/* ---------- render ---------- */
+
+function render() {
+  document.querySelectorAll('nav.tabs .tab').forEach(t =>
+    t.classList.toggle('on', t.dataset.view === view));
+  if (view === 'home') renderHome();
+  else if (view === 'entries') renderEntries();
+  else if (view === 'goals') renderGoals();
+  else renderReports();
+}
+
+function monthNavHTML() {
+  return `<div class="monthnav">
+    <button data-act="prev-month" aria-label="previous month">‹</button>
+    <div class="label">${monthLabel(curMonth)}</div>
+    <button data-act="next-month" aria-label="next month">›</button>
+  </div>`;
+}
+
+/* ----- HOME ----- */
+
+function renderHome() {
+  const list = entriesInMonth(curMonth);
+  const money = sum(moneyOf(list));
+  const value = sum(valueOf(list));
+  const goal = db.goals[curMonth];
+  const left = goal ? Math.max(0, goal - money) : 0;
+  const totals = catTotals(moneyOf(list));
+
+  /* donut segments */
+  let segs = '', off = 0;
+  for (const { cat: c, total } of totals) {
+    const len = (total / money) * DONUT_C;
+    segs += `<circle r="38" cx="50" cy="50" fill="none" stroke="${c.color}" stroke-width="13"
+      stroke-dasharray="${len} ${DONUT_C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 50 50)"/>`;
+    off += len;
+  }
+
+  const goalArea = goal
+    ? `<div class="goalchip"><button class="chip" data-act="edit-goal">GOAL <b>${fmt(goal)}</b>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4L8 20l-5 1 1-5L17 3z"/></svg>
+      </button></div>`
+    : `<div class="goalsetter">
+        <div class="gs-label">SET A GOAL FOR ${monthLabel(curMonth).split(' ')[0]}</div>
+        <div class="gs-row">
+          <input id="gs-amt" inputmode="decimal" placeholder="0">
+          <button class="btn small" data-act="set-goal-inline">SET</button>
+        </div>
+      </div>`;
+
+  let cheer;
+  if (!db.entries.length && !goal) {
+    cheer = `<div class="cheer neutral">Tap + to add the first money that found you 🍊</div>`;
+  } else if (!goal) {
+    cheer = money > 0 ? `<div class="cheer">${fmt(money)} tracked this month — beautiful ✨</div>` : '';
+  } else if (money >= goal) {
+    cheer = `<div class="cheer">Goal reached — ${fmt(money)}! 🎉</div>`;
+  } else if (money / goal >= 0.75) {
+    cheer = `<div class="cheer">Only ${fmt(left)} to go — you can do this! 💥</div>`;
+  } else if (money / goal >= 0.5) {
+    cheer = `<div class="cheer">Past halfway — ${fmt(left)} to go! 🔥</div>`;
+  } else {
+    cheer = `<div class="cheer">${fmt(left)} to go — watch it roll in 🍊</div>`;
+  }
+
+  $view.innerHTML = `<div class="screen">
+    ${monthNavHTML()}
+    ${goalArea}
+    <div class="donut-wrap"><div class="donut-box">
+      <svg class="donut" viewBox="0 0 100 100">
+        <circle r="38" cx="50" cy="50" fill="none" stroke="#f1ece1" stroke-width="13"/>
+        ${segs}
+      </svg>
+      <div class="donut-centre"><div class="amt">${fmt(money)}</div></div>
+    </div></div>
+    <div class="legend">${totals.map(({ cat: c }) =>
+      `<span><i style="background:${c.color}"></i>${esc(c.name)}</span>`).join('')}</div>
+    <div class="stats">
+      <div class="stat money"><div class="k">MONEY</div><div class="v">${fmt(money)}</div></div>
+      <div class="stat value"><div class="k">VALUE</div><div class="v">${fmt(value)}</div></div>
+      ${goal ? `<div class="stat left"><div class="k">LEFT TO GO</div><div class="v">${fmt(left)}</div></div>` : ''}
+    </div>
+    ${cheer}
+  </div>`;
+}
+
+/* ----- ENTRIES ----- */
+
+function renderEntries() {
+  const list = entriesInMonth(curMonth).slice().sort((a, b) => b.date.localeCompare(a.date));
+  let body;
+  if (!list.length) {
+    body = `<div class="empty">No entries for ${monthLabel(curMonth).toLowerCase()} yet.<br>Tap + to add one 🍊</div>`;
+  } else {
+    body = '';
+    let lastDay = '';
+    for (const e of list) {
+      if (e.date !== lastDay) {
+        lastDay = e.date;
+        const d = new Date(e.date + 'T12:00');
+        body += `<div class="daysep">${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric' }).toUpperCase()}</div>`;
+      }
+      const c = cat(e.catId) || { name: '?', color: '#ccc', icon: '❓' };
+      body += `<div class="entryrow" data-entry="${e.id}">
+        <div class="ei" style="background:${c.color}26">${c.icon}</div>
+        <div class="en"><div class="nm">${esc(c.name)}</div>${e.kind === 'value' ? '<div class="kd">VALUE</div>' : ''}</div>
+        <div class="ev ${e.kind}">${fmt(e.amount)}</div>
+      </div>`;
+    }
+  }
+  $view.innerHTML = `<div class="screen">${monthNavHTML()}<div style="height:10px"></div>${body}</div>`;
+}
+
+/* ----- GOALS ----- */
+
+function renderGoals() {
+  const keys = new Set(Object.keys(db.goals));
+  for (const e of db.entries) keys.add(e.date.slice(0, 7));
+  keys.add(monthKey(new Date()));
+  const months = [...keys].sort().reverse();
+
+  const rows = months.map(mk => {
+    const goal = db.goals[mk];
+    const money = sum(moneyOf(entriesInMonth(mk)));
+    if (!goal) {
+      return `<div class="goalrow nogoal" data-goal-month="${mk}">
+        <div class="gr-top"><span class="gm">${monthLabel(mk)}</span>
+        <span class="gn"><b>${fmt(money)}</b> · no goal</span></div>
+      </div>`;
+    }
+    const pct = Math.min(100, (money / goal) * 100);
+    return `<div class="goalrow" data-goal-month="${mk}">
+      <div class="gr-top"><span class="gm">${monthLabel(mk)}</span>
+      <span class="gn"><b>${fmt(money)}</b> / ${fmt(goal)}</span></div>
+      <div class="bar"><i class="${money >= goal ? 'done' : ''}" style="width:${pct}%"></i></div>
+    </div>`;
+  }).join('');
+
+  $view.innerHTML = `<div class="screen">
+    <div class="screen-title">GOALS</div>
+    <div class="addgoal"><button class="btn small ghost" data-act="add-goal">+ SET A GOAL</button></div>
+    ${rows || '<div class="empty">No goals yet — set one and watch the money roll in 🍊</div>'}
+  </div>`;
+}
+
+/* ----- REPORTS ----- */
+
+function repRange() {
+  const a = monthDate(rep.anchor);
+  const y = a.getFullYear(), m = a.getMonth();
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (rep.type === 'month') {
+    return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)), label: monthLabel(rep.anchor) };
+  }
+  if (rep.type === 'quarter') {
+    const q = Math.floor(m / 3);
+    return { from: iso(new Date(y, q * 3, 1)), to: iso(new Date(y, q * 3 + 3, 0)), label: `Q${q + 1} ${y}` };
+  }
+  if (rep.type === 'year') {
+    return { from: `${y}-01-01`, to: `${y}-12-31`, label: String(y) };
+  }
+  if (rep.type === 'all') {
+    return { from: '0000-01-01', to: '9999-12-31', label: 'ALL TIME' };
+  }
+  return { from: rep.from || '0000-01-01', to: rep.to || '9999-12-31', label: 'CUSTOM' };
+}
+
+function renderReports() {
+  const { from, to, label } = repRange();
+  const list = entriesInRange(from, to);
+  const money = sum(moneyOf(list));
+  const value = sum(valueOf(list));
+  const totals = catTotals(moneyOf(list));
+  const max = totals.length ? totals[0].total : 1;
+
+  const chips = ['month', 'quarter', 'year', 'all', 'custom'].map(t =>
+    `<button class="${rep.type === t ? 'on' : ''}" data-rep-type="${t}">${t.toUpperCase()}</button>`).join('');
+
+  const nav = ['month', 'quarter', 'year'].includes(rep.type)
+    ? `<div class="monthnav">
+        <button data-act="rep-prev" aria-label="previous">‹</button>
+        <div class="label">${label}</div>
+        <button data-act="rep-next" aria-label="next">›</button>
+      </div>`
+    : rep.type === 'custom'
+      ? `<div class="customrange">
+          <input type="date" id="rep-from" value="${rep.from}">
+          <input type="date" id="rep-to" value="${rep.to}">
+        </div>`
+      : `<div class="monthnav"><div class="label">${label}</div></div>`;
+
+  const bars = totals.map(({ cat: c, total }) =>
+    `<div class="catbar">
+      <div class="cb-top">
+        <span class="cb-name"><i style="background:${c.color}"></i>${esc(c.name)}</span>
+        <span class="cb-amt">${fmt(total)}</span>
+      </div>
+      <div class="bar"><i style="width:${(total / max) * 100}%;background:${c.color}"></i></div>
+    </div>`).join('');
+
+  $view.innerHTML = `<div class="screen">
+    <div class="screen-title">REPORTS</div>
+    <div class="chips">${chips}</div>
+    ${nav}
+    <div class="stats">
+      <div class="stat money"><div class="k">MONEY</div><div class="v">${fmt(money)}</div></div>
+      <div class="stat value"><div class="k">VALUE</div><div class="v">${fmt(value)}</div></div>
+    </div>
+    <div class="catbars">${bars || '<div class="empty">Nothing in this period yet.</div>'}</div>
+    ${list.length ? `<div class="exportrow"><button class="btn ghost small" data-act="export">EXPORT CSV</button></div>` : ''}
+  </div>`;
+}
+
+function exportCSV() {
+  const { from, to, label } = repRange();
+  const list = entriesInRange(from, to).slice().sort((a, b) => a.date.localeCompare(b.date));
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const rows = [['date', 'type', 'category', 'amount']]
+    .concat(list.map(e => [e.date, e.kind, (cat(e.catId) || { name: '' }).name, e.amount]))
+    .map(r => r.map(q).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows], { type: 'text/csv' }));
+  a.download = `zatsuma-${label.toLowerCase().replace(/\s+/g, '-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------- bottom sheets ---------- */
+
+function openSheet(html) {
+  $sheet.innerHTML = html;
+  $scrim.classList.add('open');
+  $sheet.classList.add('open');
+}
+function closeSheet() {
+  $scrim.classList.remove('open');
+  $sheet.classList.remove('open');
+}
+
+/* ----- entry sheet (add + edit) ----- */
+
+let sheetState = null;
+
+function openEntrySheet(entry) {
+  sheetState = {
+    mode: entry ? 'edit' : 'add',
+    id: entry ? entry.id : null,
+    kind: entry ? entry.kind : 'money',
+    catId: entry ? entry.catId : (db.categories[0] ? db.categories[0].id : null),
+    newCat: { color: CAT_COLOURS[0], icon: CAT_EMOJI[0] },
+    showNewCat: !db.categories.length,
+  };
+  openSheet(`
+    <div class="sheet-head">${entry ? 'EDIT ENTRY' : 'ADD ENTRY'}</div>
+    <div class="seg">
+      <button class="money" data-kind="money">MONEY</button>
+      <button class="value" data-kind="value">VALUE</button>
+    </div>
+    <input class="amt-input" id="e-amt" inputmode="decimal" placeholder="0"
+      value="${entry ? entry.amount : ''}">
+    <div class="hint" id="kind-hint"></div>
+    <div class="sheet-label">CATEGORY</div>
+    <div class="catgrid" id="catgrid"></div>
+    <div class="newcat" id="newcat" hidden>
+      <div class="sheet-label" style="margin-top:0">NEW CATEGORY</div>
+      <input class="name-input" id="nc-name" placeholder="Name" maxlength="24">
+      <div class="sheet-label">COLOUR</div>
+      <div class="swatches" id="nc-swatches"></div>
+      <div class="sheet-label">ICON</div>
+      <div class="emojigrid" id="nc-emoji"></div>
+      <div class="sheet-actions" style="margin-top:14px">
+        <button class="btn small" data-act="create-cat">ADD CATEGORY</button>
+      </div>
+    </div>
+    <div class="sheet-label">DATE</div>
+    <input type="date" class="date-input" id="e-date" value="${entry ? entry.date : todayStr()}">
+    <div class="sheet-actions">
+      <button class="btn" data-act="save-entry">SAVE</button>
+      ${entry ? '<button class="btn danger" data-act="delete-entry">DELETE</button>' : ''}
+    </div>
+  `);
+  refreshEntrySheet();
+  if (!entry) setTimeout(() => document.getElementById('e-amt').focus(), 280);
+}
+
+function refreshEntrySheet() {
+  const s = sheetState;
+  $sheet.querySelectorAll('.seg button').forEach(b =>
+    b.classList.toggle('on', b.dataset.kind === s.kind));
+  document.getElementById('kind-hint').textContent = s.kind === 'value'
+    ? 'Value that came to you — gifts, vouchers, discounts, freebies'
+    : 'Money that found you';
+
+  const grid = document.getElementById('catgrid');
+  grid.innerHTML = db.categories.map(c => {
+    const on = c.id === s.catId;
+    return `<button class="catchip" data-cat="${c.id}"
+      style="${on ? `background:${c.color};border-color:${c.color};color:#fff` : `border-color:${c.color}55`}">
+      ${c.icon} ${esc(c.name)}</button>`;
+  }).join('') + `<button class="catchip new" data-act="toggle-newcat">+ NEW</button>`;
+
+  const nc = document.getElementById('newcat');
+  nc.hidden = !s.showNewCat;
+  if (s.showNewCat) {
+    document.getElementById('nc-swatches').innerHTML = CAT_COLOURS.map(c =>
+      `<button class="swatch ${c === s.newCat.color ? 'on' : ''}" data-colour="${c}" style="background:${c}"></button>`).join('');
+    document.getElementById('nc-emoji').innerHTML = CAT_EMOJI.map(e =>
+      `<button class="${e === s.newCat.icon ? 'on' : ''}" data-emoji="${e}">${e}</button>`).join('');
+  }
+}
+
+function saveEntry() {
+  const amount = parseAmount(document.getElementById('e-amt').value);
+  const date = document.getElementById('e-date').value;
+  if (!amount) { document.getElementById('e-amt').focus(); return; }
+  if (!sheetState.catId) { sheetState.showNewCat = true; refreshEntrySheet(); return; }
+  if (!date) return;
+  if (sheetState.mode === 'edit') {
+    const e = db.entries.find(x => x.id === sheetState.id);
+    Object.assign(e, { amount, date, kind: sheetState.kind, catId: sheetState.catId });
+  } else {
+    db.entries.push({ id: uid(), amount, kind: sheetState.kind, catId: sheetState.catId, date });
+  }
+  save();
+  curMonth = date.slice(0, 7);
+  closeSheet();
+  render();
+}
+
+/* ----- goal sheet ----- */
+
+function openGoalSheet(mk) {
+  const existing = db.goals[mk];
+  openSheet(`
+    <div class="sheet-head">${existing ? 'EDIT GOAL' : 'SET A GOAL'}</div>
+    <div class="sheet-label">MONTH</div>
+    <input type="month" class="month-input" id="g-month" value="${mk}">
+    <div class="sheet-label">GOAL</div>
+    <input class="amt-input" id="g-amt" inputmode="decimal" placeholder="0" value="${existing || ''}">
+    <div class="sheet-actions">
+      <button class="btn" data-act="save-goal">SAVE</button>
+      ${existing ? '<button class="btn danger" data-act="delete-goal">REMOVE</button>' : ''}
+    </div>
+  `);
+  setTimeout(() => document.getElementById('g-amt').focus(), 280);
+}
+
+function saveGoal() {
+  const mk = document.getElementById('g-month').value;
+  const amount = parseAmount(document.getElementById('g-amt').value);
+  if (!mk || !amount) return;
+  db.goals[mk] = amount;
+  save();
+  closeSheet();
+  render();
+}
+
+/* ---------- events ---------- */
+
+document.querySelector('nav.tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab');
+  if (t) { view = t.dataset.view; render(); }
+});
+
+document.getElementById('fab').addEventListener('click', () => openEntrySheet());
+$scrim.addEventListener('click', closeSheet);
+
+$view.addEventListener('click', e => {
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    const a = act.dataset.act;
+    if (a === 'prev-month') { curMonth = shiftMonth(curMonth, -1); render(); }
+    if (a === 'next-month') { curMonth = shiftMonth(curMonth, 1); render(); }
+    if (a === 'edit-goal') openGoalSheet(curMonth);
+    if (a === 'add-goal') openGoalSheet(monthKey(new Date()));
+    if (a === 'set-goal-inline') {
+      const amount = parseAmount(document.getElementById('gs-amt').value);
+      if (amount) { db.goals[curMonth] = amount; save(); render(); }
+    }
+    if (a === 'rep-prev' || a === 'rep-next') {
+      const step = a === 'rep-prev' ? -1 : 1;
+      const by = rep.type === 'month' ? 1 : rep.type === 'quarter' ? 3 : 12;
+      rep.anchor = shiftMonth(rep.anchor, step * by);
+      render();
+    }
+    if (a === 'export') exportCSV();
+    return;
+  }
+  const row = e.target.closest('[data-entry]');
+  if (row) { openEntrySheet(db.entries.find(x => x.id === row.dataset.entry)); return; }
+  const gr = e.target.closest('[data-goal-month]');
+  if (gr) openGoalSheet(gr.dataset.goalMonth);
+});
+
+$view.addEventListener('change', e => {
+  if (e.target.id === 'rep-from') { rep.from = e.target.value; render(); }
+  if (e.target.id === 'rep-to') { rep.to = e.target.value; render(); }
+});
+
+$view.addEventListener('click', e => {
+  const chip = e.target.closest('[data-rep-type]');
+  if (chip) {
+    rep.type = chip.dataset.repType;
+    if (rep.type === 'custom' && !rep.from) {
+      rep.from = `${curMonth}-01`;
+      rep.to = todayStr();
+    }
+    render();
+  }
+});
+
+$sheet.addEventListener('click', e => {
+  const kind = e.target.closest('[data-kind]');
+  if (kind) { sheetState.kind = kind.dataset.kind; refreshEntrySheet(); return; }
+
+  const catBtn = e.target.closest('[data-cat]');
+  if (catBtn) { sheetState.catId = catBtn.dataset.cat; refreshEntrySheet(); return; }
+
+  const sw = e.target.closest('[data-colour]');
+  if (sw) { sheetState.newCat.color = sw.dataset.colour; refreshEntrySheet(); return; }
+
+  const em = e.target.closest('[data-emoji]');
+  if (em) { sheetState.newCat.icon = em.dataset.emoji; refreshEntrySheet(); return; }
+
+  const act = e.target.closest('[data-act]');
+  if (!act) return;
+  const a = act.dataset.act;
+  if (a === 'toggle-newcat') {
+    sheetState.showNewCat = !sheetState.showNewCat;
+    refreshEntrySheet();
+    if (sheetState.showNewCat) document.getElementById('nc-name').focus();
+  }
+  if (a === 'create-cat') {
+    const name = document.getElementById('nc-name').value.trim();
+    if (!name) { document.getElementById('nc-name').focus(); return; }
+    const c = { id: uid(), name, color: sheetState.newCat.color, icon: sheetState.newCat.icon };
+    db.categories.push(c);
+    save();
+    sheetState.catId = c.id;
+    sheetState.showNewCat = false;
+    refreshEntrySheet();
+  }
+  if (a === 'save-entry') saveEntry();
+  if (a === 'delete-entry') {
+    db.entries = db.entries.filter(x => x.id !== sheetState.id);
+    save();
+    closeSheet();
+    render();
+  }
+  if (a === 'save-goal') saveGoal();
+  if (a === 'delete-goal') {
+    delete db.goals[document.getElementById('g-month').value];
+    save();
+    closeSheet();
+    render();
+  }
+});
+
+render();

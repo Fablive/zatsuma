@@ -7,8 +7,12 @@ const LS_KEY = DEMO ? 'zatsuma-demo' : 'zatsuma-v1';
 const CAT_COLOURS = ['#e62d64', '#ec008b', '#119fe0', '#2d5be6', '#6a4fd8', '#00a887', '#94c11f', '#ffce4e'];
 const CAT_EMOJI = ['🎨','💬','🎤','💼','✍️','📚','🛍️','🎁','💐','🏠','🚗','✈️','🍽️','☕','💻','📈','🧘','💅','🐾','🎬','🎵','🌿','✨','💎'];
 const DONUT_C = 2 * Math.PI * 38;
-/* VALUE is its own built-in category — leaf green, no user category needed */
-const VALUE_CAT = { id: '__value', name: 'Value', color: '#5a9e3d', icon: '🍃' };
+/* VALUE is its own built-in category — leaf green, no user category needed.
+   Icon is a drawn leaf (Fab's pick — crisper than any emoji at row size). */
+const VALUE_CAT = { id: '__value', name: 'Value', color: '#5a9e3d',
+  icon: `<svg viewBox="0 0 24 24" style="width:22px;height:22px;display:block">
+    <path d="M20 4 C10 4 4 10 4 18 C4 19 4.4 20 5 20 C5.5 20 6 19.6 6.3 19 C8 15 11 11.5 15 9.5 C11.5 12.5 9 16 8 19.5 C8.6 19.8 9.3 20 10 20 C16 20 20 13 20 4 Z" fill="#5a9e3d"/>
+  </svg>` };
 
 /* ---------- data ---------- */
 

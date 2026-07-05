@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Zatsuma — track the money that finds you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brown: #a85c2c;
+    --brown-dark: #8f4a20;
+    --tan: #b8a88c;
+    --cream: #f4f0e4;
+    --card: #ffffff;
+    --ink: #3a2e22;
+    --muted: #9b8d7a;
+    --satsuma: #f5822a;
+    --leaf: #5a9e3d;
+    --pink: #e94f8a;
+    --blue: #2eb0e0;
+    --yellow: #f7c948;
+    --radius: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Nunito', system-ui, sans-serif;
+    background: var(--tan);
+    color: var(--ink);
+    display: flex; justify-content: center;
+    min-height: 100vh;
+  }
+  /* phone frame on desktop; full-bleed on mobile */
+  .app {
+    width: 100%; max-width: 430px; min-height: 100vh;
+    background: var(--cream);
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  @media (min-width: 500px) {
+    body { padding: 32px 0; }
+    .app { min-height: 0; border-radius: 36px; overflow: hidden; box-shadow: 0 24px 60px rgba(58,46,34,0.35); }
+  }
+
+  /* ---------- header ---------- */
+  header {
+    background: var(--brown);
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 18px 14px;
+  }
+  .logo { width: 40px; height: 40px; flex-shrink: 0; }
+  .wordmark {
+    font-family: 'Baloo 2', sans-serif; font-weight: 700;
+    color: #fff; font-size: 26px; letter-spacing: 0.06em;
+  }
+
+  /* ---------- month nav ---------- */
+  .monthnav {
+    display: flex; align-items: center; justify-content: center; gap: 22px;
+    padding: 20px 0 6px;
+  }
+  .monthnav button {
+    background: none; border: none; color: var(--brown);
+    font-size: 22px; cursor: pointer; padding: 4px 10px; line-height: 1;
+  }
+  .monthnav .label {
+    font-family: 'Baloo 2', sans-serif; font-weight: 600; font-size: 21px;
+    letter-spacing: 0.12em; color: var(--ink);
+  }
+
+  /* ---------- donut ---------- */
+  .donut-wrap { display: flex; justify-content: center; padding: 8px 0 2px; position: relative; }
+  .donut { width: 230px; height: 230px; }
+  .donut-centre {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .donut-centre .cur { font-size: 15px; font-weight: 700; color: var(--muted); }
+  .donut-centre .amt { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 44px; line-height: 1.05; }
+  .donut-centre .sub { font-size: 11.5px; font-weight: 800; letter-spacing: 0.14em; color: var(--muted); }
+
+  .legend {
+    display: flex; justify-content: center; gap: 18px; flex-wrap: wrap;
+    padding: 12px 20px 4px; font-size: 13.5px; font-weight: 700;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  /* ---------- stat cards ---------- */
+  .stats { padding: 16px 16px 0; display: flex; flex-direction: column; gap: 10px; }
+  .stat {
+    background: var(--card); border-radius: var(--radius);
+    padding: 15px 18px; display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 2px 8px rgba(58,46,34,0.06);
+  }
+  .stat .k { font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; color: var(--muted); }
+  .stat .v { font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 22px; }
+  .stat.goal .v { color: var(--ink); }
+  .stat.income .k, .stat.income .v { color: var(--pink); }
+  .stat.value .k, .stat.value .v { color: var(--blue); }
+  .stat.left .k { color: var(--muted); } .stat.left .v { color: var(--leaf); }
+
+  /* ---------- encouragement ---------- */
+  .cheer {
+    margin: 12px 16px 0; background: #fdeaf2; color: #c2366f;
+    border-radius: var(--radius); padding: 13px 16px; text-align: center;
+    font-weight: 800; font-size: 14.5px;
+  }
+
+  /* ---------- goal setter ---------- */
+  .goalset {
+    margin: 12px 16px 0; background: var(--card); border-radius: var(--radius);
+    padding: 16px 18px; box-shadow: 0 2px 8px rgba(58,46,34,0.06);
+  }
+  .goalset .k { font-size: 12.5px; font-weight: 800; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 10px; }
+  .goalset .row { display: flex; gap: 10px; }
+  .goalset input {
+    flex: 1; border: none; background: var(--cream); border-radius: 10px;
+    padding: 12px 14px; font: inherit; font-weight: 700; font-size: 16px; color: var(--ink);
+    outline: none;
+  }
+  .goalset input::placeholder { color: var(--muted); font-weight: 600; }
+  .goalset button {
+    background: var(--brown); color: #fff; border: none; border-radius: 10px;
+    font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.1em;
+    padding: 0 22px; cursor: pointer;
+  }
+
+  .watermark {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 22px 0 90px; opacity: 0.45;
+  }
+  .watermark .logo { width: 22px; height: 22px; }
+  .watermark span { font-family: 'Baloo 2', sans-serif; font-weight: 700; letter-spacing: 0.18em; font-size: 13px; color: var(--brown); }
+
+  /* ---------- bottom tabs ---------- */
+  nav.tabs {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--brown);
+    display: grid; grid-template-columns: 1fr 1fr 84px 1fr 1fr;
+    padding: 10px 6px calc(12px + env(safe-area-inset-bottom));
+  }
+  nav.tabs a {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    color: rgba(255,255,255,0.75); text-decoration: none;
+    font-size: 10px; font-weight: 800; letter-spacing: 0.08em;
+  }
+  nav.tabs a.on { color: #ffd9a0; }
+  nav.tabs a svg { width: 22px; height: 22px; }
+  .fab {
+    position: absolute; bottom: calc(26px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    width: 62px; height: 62px; border-radius: 50%;
+    background: var(--pink); color: #fff; border: 4px solid var(--cream);
+    font-size: 30px; font-weight: 400; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(233,79,138,0.45); cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <svg class="logo" viewBox="0 0 64 64">
+      <!-- satsuma -->
+      <ellipse cx="32" cy="38" rx="24" ry="22" fill="#f5822a"/>
+      <path d="M32 16 C30 10 24 7 19 8 C21 13 26 16 32 16 Z" fill="#5a9e3d"/>
+      <path d="M33 15 C36 9 43 8 47 11 C44 15 38 17 33 15 Z" fill="#6fb84e"/>
+      <circle cx="24" cy="36" r="2.6" fill="#3a2e22"/>
+      <circle cx="40" cy="36" r="2.6" fill="#3a2e22"/>
+      <path d="M24 44 Q32 50 40 44" stroke="#3a2e22" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="wordmark">ZATSUMA</div>
+  </header>
+
+  <div class="monthnav">
+    <button aria-label="previous month">‹</button>
+    <div class="label">APRIL 2026</div>
+    <button aria-label="next month">›</button>
+  </div>
+
+  <div class="donut-wrap">
+    <svg class="donut" viewBox="0 0 100 100">
+      <!-- segments drawn as strokes on a circle: Studio 40% pink, Coaching 35% blue, Speaking 25% yellow -->
+      <circle r="38" cx="50" cy="50" fill="none" stroke="#f0e9d8" stroke-width="14"/>
+      <circle r="38" cx="50" cy="50" fill="none" stroke="#e94f8a" stroke-width="14"
+        stroke-dasharray="95.5 143.3" stroke-dashoffset="0" transform="rotate(-90 50 50)" stroke-linecap="butt"/>
+      <circle r="38" cx="50" cy="50" fill="none" stroke="#2eb0e0" stroke-width="14"
+        stroke-dasharray="83.6 155.2" stroke-dashoffset="-95.5" transform="rotate(-90 50 50)"/>
+      <circle r="38" cx="50" cy="50" fill="none" stroke="#f7c948" stroke-width="14"
+        stroke-dasharray="59.7 179.1" stroke-dashoffset="-179.1" transform="rotate(-90 50 50)"/>
+    </svg>
+    <div class="donut-centre">
+      <div class="cur">£</div>
+      <div class="amt">8,450</div>
+      <div class="sub">THIS MONTH</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i style="background:var(--pink)"></i>Studio</span>
+    <span><i style="background:var(--blue)"></i>Coaching</span>
+    <span><i style="background:var(--yellow)"></i>Speaking</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat goal"><div class="k">GOAL</div><div class="v">£10,000</div></div>
+    <div class="stat income"><div class="k">MONEY</div><div class="v">£8,450</div></div>
+    <div class="stat value"><div class="k">VALUE</div><div class="v">£320</div></div>
+    <div class="stat left"><div class="k">LEFT TO GO</div><div class="v">£1,550</div></div>
+  </div>
+
+  <div class="cheer">Only £1,550 to go — you can do this! 💥</div>
+
+  <div class="goalset">
+    <div class="k">SET MONTHLY GOAL</div>
+    <div class="row">
+      <input type="text" inputmode="decimal" placeholder="e.g. 10000">
+      <button>SET</button>
+    </div>
+  </div>
+
+  <div class="watermark">
+    <svg class="logo" viewBox="0 0 64 64">
+      <ellipse cx="32" cy="38" rx="24" ry="22" fill="#a85c2c"/>
+      <path d="M32 16 C30 10 24 7 19 8 C21 13 26 16 32 16 Z" fill="#a85c2c"/>
+    </svg>
+    <span>ZATSUMA</span>
+  </div>
+
+  <button class="fab" aria-label="add entry">+</button>
+  <nav class="tabs">
+    <a class="on" href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      HOME</a>
+    <a href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1.2" fill="currentColor"/><circle cx="4" cy="12" r="1.2" fill="currentColor"/><circle cx="4" cy="18" r="1.2" fill="currentColor"/></svg>
+      ENTRIES</a>
+    <span></span>
+    <a href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>
+      GOALS</a>
+    <a href="#">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      REPORTS</a>
+  </nav>
+
+</div>
+</body>
+</html>

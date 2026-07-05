@@ -267,6 +267,29 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
 .sheet .hint { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 7px; }
 .sheet-actions { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
 
+/* ---------- login gate ---------- */
+.gate {
+  position: absolute; inset: 0; z-index: 20; background: var(--paper);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 32px;
+}
+.gate .glogo { width: 108px; height: 98px; }
+.gate .gword { font-weight: 500; color: var(--rust); font-size: 30px; letter-spacing: 0.14em; }
+.gate .gtag { font-size: 14.5px; color: var(--muted); letter-spacing: 0.04em; margin-bottom: 14px; }
+.gate input[type="email"] {
+  font-family: inherit; font-size: 16px; color: var(--ink); text-align: center;
+  border: 1px solid var(--hairline); border-radius: 12px; padding: 12px 16px;
+  background: var(--paper); width: 100%; max-width: 300px;
+}
+.gate input[type="email"]:focus { outline: none; border-color: var(--rust); }
+.gate .consent {
+  display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text);
+  cursor: pointer;
+}
+.gate .consent input { accent-color: var(--rust); width: 16px; height: 16px; }
+.gate .gnote { font-size: 12px; color: var(--muted); text-align: center; max-width: 260px; line-height: 1.5; }
+.gate .gerr { font-size: 13px; color: var(--cat-pink); min-height: 18px; }
+
 /* money / value segmented toggle */
 .seg {
   display: grid; grid-template-columns: 1fr 1fr; gap: 6px;

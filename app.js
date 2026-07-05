@@ -570,4 +570,40 @@ $sheet.addEventListener('click', e => {
   }
 });
 
+/* ---------- login gate ----------
+   Login-first flow (Fab's decision). Local mode for now: the email + consent are
+   stored on the device; when Supabase is connected, the button sends a real
+   magic login link instead and the account lives in the cloud. */
+
+const ACC_KEY = 'zatsuma-account-v1';
+function account() {
+  try { return JSON.parse(localStorage.getItem(ACC_KEY)); } catch (e) { return null; }
+}
+
+function renderGate() {
+  const gate = document.getElementById('gate');
+  gate.innerHTML = `
+    ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
+    <div class="gword">ZATSUMA</div>
+    <div class="gtag">track the money that finds you</div>
+    <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email">
+    <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🍊</label>
+    <div class="gerr" id="acc-err"></div>
+    <button class="btn" id="acc-go">COME ON IN</button>
+    <div class="gnote">No passwords here — soon this will email you a magic login link.</div>
+  `;
+  gate.hidden = false;
+  document.getElementById('acc-go').addEventListener('click', () => {
+    const email = document.getElementById('acc-email').value.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      document.getElementById('acc-err').textContent = 'That email doesn’t look right yet';
+      return;
+    }
+    const consent = document.getElementById('acc-consent').checked;
+    localStorage.setItem(ACC_KEY, JSON.stringify({ email, consent, createdAt: new Date().toISOString() }));
+    gate.hidden = true;
+  });
+}
+
+if (!DEMO && !account()) renderGate();
 render();

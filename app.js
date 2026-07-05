@@ -7,6 +7,8 @@ const LS_KEY = DEMO ? 'zatsuma-demo' : 'zatsuma-v1';
 const CAT_COLOURS = ['#e62d64', '#ec008b', '#119fe0', '#2d5be6', '#6a4fd8', '#00a887', '#94c11f', '#ffce4e'];
 const CAT_EMOJI = ['🎨','💬','🎤','💼','✍️','📚','🛍️','🎁','💐','🏠','🚗','✈️','🍽️','☕','💻','📈','🧘','💅','🐾','🎬','🎵','🌿','✨','💎'];
 const DONUT_C = 2 * Math.PI * 38;
+/* VALUE is its own built-in category — leaf green, no user category needed */
+const VALUE_CAT = { id: '__value', name: 'Value', color: '#5a9e3d', icon: '🍃' };
 
 /* ---------- data ---------- */
 
@@ -117,14 +119,17 @@ function renderHome() {
   const list = entriesInMonth(curMonth);
   const money = sum(moneyOf(list));
   const value = sum(valueOf(list));
+  const total = money + value;
   const goal = db.goals[curMonth];
-  const left = goal ? Math.max(0, goal - money) : 0;
+  const left = goal ? Math.max(0, goal - total) : 0;
+  /* value counts toward the total and gets its own leaf-green slice */
   const totals = catTotals(moneyOf(list));
+  if (value > 0) totals.push({ cat: VALUE_CAT, total: value });
 
   /* donut segments */
   let segs = '', off = 0;
-  for (const { cat: c, total } of totals) {
-    const len = (total / money) * DONUT_C;
+  for (const { cat: c, total: t } of totals) {
+    const len = (t / total) * DONUT_C;
     segs += `<circle r="38" cx="50" cy="50" fill="none" stroke="${c.color}" stroke-width="13"
       stroke-dasharray="${len} ${DONUT_C - len}" stroke-dashoffset="${-off}" transform="rotate(-90 50 50)"/>`;
     off += len;
@@ -146,12 +151,12 @@ function renderHome() {
   if (!db.entries.length && !goal) {
     cheer = `<div class="cheer neutral">Tap + to add the first money that found you 🍊</div>`;
   } else if (!goal) {
-    cheer = money > 0 ? `<div class="cheer">${fmt(money)} tracked this month — beautiful ✨</div>` : '';
-  } else if (money >= goal) {
-    cheer = `<div class="cheer">Goal reached — ${fmt(money)}! 🎉</div>`;
-  } else if (money / goal >= 0.75) {
+    cheer = total > 0 ? `<div class="cheer">${fmt(total)} tracked this month — beautiful ✨</div>` : '';
+  } else if (total >= goal) {
+    cheer = `<div class="cheer">Goal reached — ${fmt(total)}! 🎉</div>`;
+  } else if (total / goal >= 0.75) {
     cheer = `<div class="cheer">Only ${fmt(left)} to go — you can do this! 💥</div>`;
-  } else if (money / goal >= 0.5) {
+  } else if (total / goal >= 0.5) {
     cheer = `<div class="cheer">Past halfway — ${fmt(left)} to go! 🔥</div>`;
   } else {
     cheer = `<div class="cheer">${fmt(left)} to go — watch it roll in 🍊</div>`;
@@ -165,7 +170,7 @@ function renderHome() {
         <circle r="38" cx="50" cy="50" fill="none" stroke="#f1ece1" stroke-width="13"/>
         ${segs}
       </svg>
-      <div class="donut-centre"><div class="amt">${fmt(money)}</div></div>
+      <div class="donut-centre"><div class="amt">${fmt(total)}</div></div>
     </div></div>
     <div class="legend">${totals.map(({ cat: c }) =>
       `<span><i style="background:${c.color}"></i>${esc(c.name)}</span>`).join('')}</div>
@@ -194,10 +199,10 @@ function renderEntries() {
         const d = new Date(e.date + 'T12:00');
         body += `<div class="daysep">${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric' }).toUpperCase()}</div>`;
       }
-      const c = cat(e.catId) || { name: '?', color: '#ccc', icon: '❓' };
+      const c = e.kind === 'value' ? VALUE_CAT : (cat(e.catId) || { name: '?', color: '#ccc', icon: '❓' });
       body += `<div class="entryrow" data-entry="${e.id}">
         <div class="ei" style="background:${c.color}26">${c.icon}</div>
-        <div class="en"><div class="nm">${esc(c.name)}</div>${e.kind === 'value' ? '<div class="kd">VALUE</div>' : ''}</div>
+        <div class="en"><div class="nm">${esc(c.name)}</div></div>
         <div class="ev ${e.kind}">${fmt(e.amount)}</div>
       </div>`;
     }
@@ -215,18 +220,18 @@ function renderGoals() {
 
   const rows = months.map(mk => {
     const goal = db.goals[mk];
-    const money = sum(moneyOf(entriesInMonth(mk)));
+    const total = sum(entriesInMonth(mk));
     if (!goal) {
       return `<div class="goalrow nogoal" data-goal-month="${mk}">
         <div class="gr-top"><span class="gm">${monthLabel(mk)}</span>
-        <span class="gn"><b>${fmt(money)}</b> · no goal</span></div>
+        <span class="gn"><b>${fmt(total)}</b> · no goal</span></div>
       </div>`;
     }
-    const pct = Math.min(100, (money / goal) * 100);
+    const pct = Math.min(100, (total / goal) * 100);
     return `<div class="goalrow" data-goal-month="${mk}">
       <div class="gr-top"><span class="gm">${monthLabel(mk)}</span>
-      <span class="gn"><b>${fmt(money)}</b> / ${fmt(goal)}</span></div>
-      <div class="bar"><i class="${money >= goal ? 'done' : ''}" style="width:${pct}%"></i></div>
+      <span class="gn"><b>${fmt(total)}</b> / ${fmt(goal)}</span></div>
+      <div class="bar"><i class="${total >= goal ? 'done' : ''}" style="width:${pct}%"></i></div>
     </div>`;
   }).join('');
 
@@ -265,6 +270,8 @@ function renderReports() {
   const money = sum(moneyOf(list));
   const value = sum(valueOf(list));
   const totals = catTotals(moneyOf(list));
+  if (value > 0) totals.push({ cat: VALUE_CAT, total: value });
+  totals.sort((a, b) => b.total - a.total);
   const max = totals.length ? totals[0].total : 1;
 
   const chips = ['month', 'quarter', 'year', 'all', 'custom'].map(t =>
@@ -297,6 +304,7 @@ function renderReports() {
     <div class="chips">${chips}</div>
     ${nav}
     <div class="stats">
+      <div class="stat"><div class="k">TOTAL</div><div class="v">${fmt(money + value)}</div></div>
       <div class="stat money"><div class="k">MONEY</div><div class="v">${fmt(money)}</div></div>
       <div class="stat value"><div class="k">VALUE</div><div class="v">${fmt(value)}</div></div>
     </div>
@@ -310,7 +318,8 @@ function exportCSV() {
   const list = entriesInRange(from, to).slice().sort((a, b) => a.date.localeCompare(b.date));
   const q = s => `"${String(s).replace(/"/g, '""')}"`;
   const rows = [['date', 'type', 'category', 'amount']]
-    .concat(list.map(e => [e.date, e.kind, (cat(e.catId) || { name: '' }).name, e.amount]))
+    .concat(list.map(e => [e.date, e.kind,
+      e.kind === 'value' ? 'Value' : (cat(e.catId) || { name: '' }).name, e.amount]))
     .map(r => r.map(q).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows], { type: 'text/csv' }));
@@ -353,6 +362,7 @@ function openEntrySheet(entry) {
     <input class="amt-input" id="e-amt" inputmode="decimal" placeholder="0"
       value="${entry ? entry.amount : ''}">
     <div class="hint" id="kind-hint"></div>
+    <div id="catsec">
     <div class="sheet-label">CATEGORY</div>
     <div class="catgrid" id="catgrid"></div>
     <div class="newcat" id="newcat" hidden>
@@ -365,6 +375,7 @@ function openEntrySheet(entry) {
       <div class="sheet-actions" style="margin-top:14px">
         <button class="btn small" data-act="create-cat">ADD CATEGORY</button>
       </div>
+    </div>
     </div>
     <div class="sheet-label">DATE</div>
     <input type="date" class="date-input" id="e-date" value="${entry ? entry.date : todayStr()}">
@@ -384,6 +395,9 @@ function refreshEntrySheet() {
   document.getElementById('kind-hint').textContent = s.kind === 'value'
     ? 'Value that came to you — gifts, vouchers, discounts, freebies'
     : 'Money that found you';
+
+  /* VALUE is its own category — no picker needed */
+  document.getElementById('catsec').hidden = s.kind === 'value';
 
   const grid = document.getElementById('catgrid');
   grid.innerHTML = db.categories.map(c => {
@@ -407,13 +421,15 @@ function saveEntry() {
   const amount = parseAmount(document.getElementById('e-amt').value);
   const date = document.getElementById('e-date').value;
   if (!amount) { document.getElementById('e-amt').focus(); return; }
-  if (!sheetState.catId) { sheetState.showNewCat = true; refreshEntrySheet(); return; }
+  const isValue = sheetState.kind === 'value';
+  if (!isValue && !sheetState.catId) { sheetState.showNewCat = true; refreshEntrySheet(); return; }
   if (!date) return;
+  const catId = isValue ? null : sheetState.catId;
   if (sheetState.mode === 'edit') {
     const e = db.entries.find(x => x.id === sheetState.id);
-    Object.assign(e, { amount, date, kind: sheetState.kind, catId: sheetState.catId });
+    Object.assign(e, { amount, date, kind: sheetState.kind, catId });
   } else {
-    db.entries.push({ id: uid(), amount, kind: sheetState.kind, catId: sheetState.catId, date });
+    db.entries.push({ id: uid(), amount, kind: sheetState.kind, catId, date });
   }
   save();
   curMonth = date.slice(0, 7);

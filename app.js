@@ -645,9 +645,10 @@ function finishAccount(email, name, country, consent) {
   localStorage.setItem(ACC_KEY, JSON.stringify({ email, name, country, consent, createdAt: new Date().toISOString() }));
   recordSignup({ email, name, country, consent });
   localStorage.removeItem(PENDING_KEY);
-  if (!privacyAcked()) renderPrivacy();
-  else if (!startSeen()) renderStart();
-  else document.getElementById('gate').hidden = true;
+  // this is always a fresh identity completing signup, so always walk
+  // through privacy + start here – regardless of whether some other identity
+  // already saw them on this same device before.
+  renderPrivacy();
 }
 
 const PRIV_KEY = 'zatsuma-privacy-ack-v1';

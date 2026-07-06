@@ -794,6 +794,11 @@ function renderFinishAccount(email) {
   });
 }
 
+const RECORDED_KEY = 'zatsuma-recorded-emails-v1';
+function recordedEmails() {
+  try { return JSON.parse(localStorage.getItem(RECORDED_KEY)) || []; } catch (e) { return []; }
+}
+
 (async function boot() {
   if (DEMO) { render(); return; }
 
@@ -802,14 +807,35 @@ function renderFinishAccount(email) {
     history.replaceState(null, '', location.pathname);
   }
 
-  if (session && session.user && session.user.email && !account()) {
+  const existing = account();
+  const verifiedEmail = session && session.user && session.user.email;
+
+  if (verifiedEmail && !existing) {
     const pending = pendingSignup();
-    if (pending && pending.email === session.user.email) {
+    if (pending && pending.email === verifiedEmail) {
       finishAccount(pending.email, pending.name, pending.country, pending.consent);
     } else {
-      renderFinishAccount(session.user.email);
+      renderFinishAccount(verifiedEmail);
     }
-  } else if (!account()) {
+  } else if (verifiedEmail && existing && existing.email !== verifiedEmail) {
+    // a different, freshly-verified email logged in on a browser that already
+    // has local data – always record the signup for Fab's list, but never
+    // touch this device's existing local account/entries to do it
+    const recorded = recordedEmails();
+    if (!recorded.includes(verifiedEmail)) {
+      const pending = pendingSignup();
+      recordSignup({
+        email: verifiedEmail,
+        name: (pending && pending.name) || '',
+        country: (pending && pending.country) || '',
+        consent: (pending && pending.consent) || false,
+      });
+      localStorage.setItem(RECORDED_KEY, JSON.stringify(recorded.concat([verifiedEmail])));
+    }
+    localStorage.removeItem(PENDING_KEY);
+  }
+
+  if (!account()) {
     const pending = pendingSignup();
     if (pending) renderCheckEmail(pending.email);
     else renderGate();

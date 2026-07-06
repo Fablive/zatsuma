@@ -575,7 +575,7 @@ $sheet.addEventListener('click', e => {
    device, and the app itself (all money/value entries) never leaves it either
    way. Alongside that, a copy of the account fields only (never entries) is
    sent to Supabase so Fab has one central signup list. Insert-only from the
-   browser via the anon key + RLS — the public key can add a row but can never
+   browser via the anon key + RLS – the public key can add a row but can never
    read the list back. */
 
 const SUPABASE_URL = 'https://lmkqxqnlbrxqvesnokra.supabase.co';
@@ -597,6 +597,28 @@ function recordSignup(payload) {
 const ACC_KEY = 'zatsuma-account-v1';
 function account() {
   try { return JSON.parse(localStorage.getItem(ACC_KEY)); } catch (e) { return null; }
+}
+
+const PRIV_KEY = 'zatsuma-privacy-ack-v1';
+function privacyAcked() { return !!localStorage.getItem(PRIV_KEY); }
+
+function renderPrivacy() {
+  const gate = document.getElementById('gate');
+  gate.innerHTML = `
+    ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
+    <div class="gpriv-title">BEFORE YOU DIVE IN</div>
+    <div class="gpriv-body">
+      <p>Quick thing, because it matters to me: all I ever get is your email, name and country. That's it. That's the bit that just says "you exist."</p>
+      <p>Every entry, every goal, every number you type into Zatsuma stays on your phone. It's stored locally in your browser. I don't receive it, I don't store it, I can't see it.</p>
+    </div>
+    <button class="btn" id="priv-go">GOT IT, LET'S GO</button>
+    <div class="gnote">Track whatever you like – it's yours and only yours 🍊</div>
+  `;
+  gate.hidden = false;
+  document.getElementById('priv-go').addEventListener('click', () => {
+    localStorage.setItem(PRIV_KEY, new Date().toISOString());
+    gate.hidden = true;
+  });
 }
 
 function renderGate() {
@@ -630,9 +652,12 @@ function renderGate() {
     const consent = document.getElementById('acc-consent').checked;
     localStorage.setItem(ACC_KEY, JSON.stringify({ email, name, country, consent, createdAt: new Date().toISOString() }));
     recordSignup({ email, name, country, consent });
-    gate.hidden = true;
+    renderPrivacy();
   });
 }
 
-if (!DEMO && !account()) renderGate();
+if (!DEMO) {
+  if (!account()) renderGate();
+  else if (!privacyAcked()) renderPrivacy();
+}
 render();

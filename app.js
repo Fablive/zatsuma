@@ -600,15 +600,20 @@ $sheet.addEventListener('click', e => {
 });
 
 /* ---------- login gate ----------
-   Local mode: the account (email, name, country, consent) is stored on the
-   device, and the app itself (all money/value entries) never leaves it either
-   way. Alongside that, a copy of the account fields only (never entries) is
-   sent to Supabase so Fab has one central signup list. Insert-only from the
+   The account (email, name, country, consent) is stored on the device, and
+   the app itself (all money/value entries) never leaves it either way.
+   Alongside that, a copy of the account fields only (never entries) is sent
+   to Supabase so Fab has one central signup list. Insert-only from the
    browser via the anon key + RLS – the public key can add a row but can never
-   read the list back. */
+   read the list back.
+
+   The email itself is verified via Supabase Auth's magic link: entering the
+   form doesn't create the account by itself, it sends a real email, and only
+   clicking that link (proof the person controls the inbox) finalises it. */
 
 const SUPABASE_URL = 'https://lmkqxqnlbrxqvesnokra.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxta3F4cW5sYnJ4cXZlc25va3JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyODIxMzQsImV4cCI6MjA5ODg1ODEzNH0.FkA85XMCA4IJc8oyG1wQw-mxeOHPd-Y8Pxj1V0RJeuo';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 function recordSignup(payload) {
   fetch(`${SUPABASE_URL}/rest/v1/zatsuma_accounts`, {
@@ -626,6 +631,20 @@ function recordSignup(payload) {
 const ACC_KEY = 'zatsuma-account-v1';
 function account() {
   try { return JSON.parse(localStorage.getItem(ACC_KEY)); } catch (e) { return null; }
+}
+
+const PENDING_KEY = 'zatsuma-pending-v1';
+function pendingSignup() {
+  try { return JSON.parse(localStorage.getItem(PENDING_KEY)); } catch (e) { return null; }
+}
+
+function finishAccount(email, name, country, consent) {
+  localStorage.setItem(ACC_KEY, JSON.stringify({ email, name, country, consent, createdAt: new Date().toISOString() }));
+  recordSignup({ email, name, country, consent });
+  localStorage.removeItem(PENDING_KEY);
+  if (!privacyAcked()) renderPrivacy();
+  else if (!startSeen()) renderStart();
+  else document.getElementById('gate').hidden = true;
 }
 
 const PRIV_KEY = 'zatsuma-privacy-ack-v1';
@@ -687,10 +706,10 @@ function renderGate() {
     <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
-    <div class="gnote">No passwords here – soon this will email you a magic login link.</div>
+    <div class="gnote">No passwords here – we'll email you a link to confirm it's really you.</div>
   `;
   gate.hidden = false;
-  document.getElementById('acc-go').addEventListener('click', () => {
+  document.getElementById('acc-go').addEventListener('click', async () => {
     const email = document.getElementById('acc-email').value.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
       document.getElementById('acc-err').textContent = 'That email doesn’t look right yet';
@@ -703,15 +722,98 @@ function renderGate() {
     }
     const country = document.getElementById('acc-country').value.trim();
     const consent = document.getElementById('acc-consent').checked;
-    localStorage.setItem(ACC_KEY, JSON.stringify({ email, name, country, consent, createdAt: new Date().toISOString() }));
-    recordSignup({ email, name, country, consent });
-    renderPrivacy();
+
+    const btn = document.getElementById('acc-go');
+    btn.disabled = true;
+    btn.textContent = 'SENDING…';
+    localStorage.setItem(PENDING_KEY, JSON.stringify({ email, name, country, consent }));
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: location.origin + location.pathname },
+    });
+    if (error) {
+      document.getElementById('acc-err').textContent = 'Couldn’t send that – try again in a minute';
+      btn.disabled = false;
+      btn.textContent = 'COME ON IN';
+      return;
+    }
+    renderCheckEmail(email);
   });
 }
 
-if (!DEMO) {
-  if (!account()) renderGate();
-  else if (!privacyAcked()) renderPrivacy();
-  else if (!startSeen()) renderStart();
+function renderCheckEmail(email) {
+  const gate = document.getElementById('gate');
+  gate.innerHTML = `
+    ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
+    <div class="gpriv-title">CHECK YOUR EMAIL</div>
+    <div class="gpriv-body">
+      <p>We just sent a magic link to <b>${email}</b>. Tap it on this device to come on in – no password needed.</p>
+    </div>
+    <button class="btn ghost small" id="check-resend">RESEND LINK</button>
+    <div class="gnote"><a href="#" id="check-restart">Wrong email? Start over</a></div>
+  `;
+  gate.hidden = false;
+  document.getElementById('check-resend').addEventListener('click', async e => {
+    e.target.disabled = true;
+    e.target.textContent = 'SENT';
+    await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
+    setTimeout(() => { e.target.disabled = false; e.target.textContent = 'RESEND LINK'; }, 30000);
+  });
+  document.getElementById('check-restart').addEventListener('click', e => {
+    e.preventDefault();
+    localStorage.removeItem(PENDING_KEY);
+    renderGate();
+  });
 }
-render();
+
+function renderFinishAccount(email) {
+  const gate = document.getElementById('gate');
+  gate.innerHTML = `
+    ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
+    <div class="gpriv-title">ALMOST THERE</div>
+    <div class="gpriv-body"><p>Confirmed as <b>${email}</b>. Just need a couple more things.</p></div>
+    <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
+    <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
+    <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🐧</label>
+    <div class="gerr" id="acc-err"></div>
+    <button class="btn" id="finish-go">GOT IT, LET'S GO</button>
+  `;
+  gate.hidden = false;
+  document.getElementById('finish-go').addEventListener('click', () => {
+    const name = document.getElementById('acc-name').value.trim();
+    if (!name) {
+      document.getElementById('acc-err').textContent = 'Add your name too';
+      return;
+    }
+    const country = document.getElementById('acc-country').value.trim();
+    const consent = document.getElementById('acc-consent').checked;
+    finishAccount(email, name, country, consent);
+  });
+}
+
+(async function boot() {
+  if (DEMO) { render(); return; }
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (location.hash.includes('access_token') || location.search.includes('code=')) {
+    history.replaceState(null, '', location.pathname);
+  }
+
+  if (session && session.user && session.user.email && !account()) {
+    const pending = pendingSignup();
+    if (pending && pending.email === session.user.email) {
+      finishAccount(pending.email, pending.name, pending.country, pending.consent);
+    } else {
+      renderFinishAccount(session.user.email);
+    }
+  } else if (!account()) {
+    const pending = pendingSignup();
+    if (pending) renderCheckEmail(pending.email);
+    else renderGate();
+  } else if (!privacyAcked()) {
+    renderPrivacy();
+  } else if (!startSeen()) {
+    renderStart();
+  }
+  render();
+})();

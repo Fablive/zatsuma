@@ -571,9 +571,28 @@ $sheet.addEventListener('click', e => {
 });
 
 /* ---------- login gate ----------
-   Login-first flow (Fab's decision). Local mode for now: the email + consent are
-   stored on the device; when Supabase is connected, the button sends a real
-   magic login link instead and the account lives in the cloud. */
+   Local mode: the account (email, name, country, consent) is stored on the
+   device, and the app itself (all money/value entries) never leaves it either
+   way. Alongside that, a copy of the account fields only (never entries) is
+   sent to Supabase so Fab has one central signup list. Insert-only from the
+   browser via the anon key + RLS — the public key can add a row but can never
+   read the list back. */
+
+const SUPABASE_URL = 'https://lmkqxqnlbrxqvesnokra.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxta3F4cW5sYnJ4cXZlc25va3JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyODIxMzQsImV4cCI6MjA5ODg1ODEzNH0.FkA85XMCA4IJc8oyG1wQw-mxeOHPd-Y8Pxj1V0RJeuo';
+
+function recordSignup(payload) {
+  fetch(`${SUPABASE_URL}/rest/v1/zatsuma_accounts`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  }).catch(() => {}); // best-effort; never blocks the local flow
+}
 
 const ACC_KEY = 'zatsuma-account-v1';
 function account() {
@@ -588,6 +607,8 @@ function renderGate() {
     <div class="gtag">track the money that finds you</div>
     <div class="gdots"><span></span><span></span><span></span><span></span></div>
     <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email">
+    <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
+    <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
     <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
@@ -600,8 +621,15 @@ function renderGate() {
       document.getElementById('acc-err').textContent = 'That email doesn’t look right yet';
       return;
     }
+    const name = document.getElementById('acc-name').value.trim();
+    if (!name) {
+      document.getElementById('acc-err').textContent = 'Add your name too';
+      return;
+    }
+    const country = document.getElementById('acc-country').value.trim();
     const consent = document.getElementById('acc-consent').checked;
-    localStorage.setItem(ACC_KEY, JSON.stringify({ email, consent, createdAt: new Date().toISOString() }));
+    localStorage.setItem(ACC_KEY, JSON.stringify({ email, name, country, consent, createdAt: new Date().toISOString() }));
+    recordSignup({ email, name, country, consent });
     gate.hidden = true;
   });
 }

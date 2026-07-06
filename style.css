@@ -282,12 +282,12 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
 .gate .gdots span:nth-child(2) { background: var(--cat-yellow); }
 .gate .gdots span:nth-child(3) { background: var(--leaf); }
 .gate .gdots span:nth-child(4) { background: var(--cat-cyan); }
-.gate input[type="email"] {
+.gate input[type="email"], .gate input[type="text"] {
   font-family: inherit; font-size: 16px; color: var(--ink); text-align: center;
   border: 1.5px solid rgba(168,95,46,0.25); border-radius: 12px; padding: 12px 16px;
   background: var(--paper); width: 100%; max-width: 300px;
 }
-.gate input[type="email"]:focus { outline: none; border-color: var(--rust); }
+.gate input[type="email"]:focus, .gate input[type="text"]:focus { outline: none; border-color: var(--rust); }
 .gate .consent {
   display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text);
   cursor: pointer;

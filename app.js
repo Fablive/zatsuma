@@ -613,7 +613,10 @@ $sheet.addEventListener('click', e => {
 
 const SUPABASE_URL = 'https://lmkqxqnlbrxqvesnokra.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxta3F4cW5sYnJ4cXZlc25va3JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyODIxMzQsImV4cCI6MjA5ODg1ODEzNH0.FkA85XMCA4IJc8oyG1wQw-mxeOHPd-Y8Pxj1V0RJeuo';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* implicit flow (not the default pkce) so the magic link works even if it's
+   opened on a different browser/device than the one that requested it –
+   testers checking mail on their phone after signing up elsewhere, etc. */
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: 'implicit' } });
 
 function recordSignup(payload) {
   fetch(`${SUPABASE_URL}/rest/v1/zatsuma_accounts`, {

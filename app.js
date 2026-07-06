@@ -679,7 +679,7 @@ function renderGate() {
   gate.innerHTML = `
     ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
     <div class="gword">ZATSUMA</div>
-    <div class="gtag">track the money that finds you</div>
+    <div class="gtag">track your open flow of money</div>
     <div class="gdots"><span></span><span></span><span></span><span></span></div>
     <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email">
     <input type="text" id="acc-name" placeholder="your name" autocomplete="name">

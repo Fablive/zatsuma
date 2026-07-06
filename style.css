@@ -273,6 +273,7 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; padding: 32px;
 }
+.gate[hidden] { display: none; }
 .gate .glogo { width: 108px; height: 98px; }
 .gate .gword { font-weight: 500; color: var(--rust); font-size: 30px; letter-spacing: 0.14em; }
 .gate .gtag { font-size: 14.5px; color: var(--rust-dark); letter-spacing: 0.04em; margin-top: -6px; }

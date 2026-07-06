@@ -90,7 +90,7 @@ function catTotals(list) {
 /* ---------- view state ---------- */
 
 const viewParam = new URLSearchParams(location.search).get('view');
-let view = ['home', 'entries', 'goals', 'reports'].includes(viewParam) ? viewParam : 'home';
+let view = ['home', 'entries', 'goals', 'reports', 'more'].includes(viewParam) ? viewParam : 'home';
 let curMonth = monthKey(new Date());
 let rep = { type: 'month', anchor: monthKey(new Date()), from: '', to: '' };
 
@@ -106,6 +106,7 @@ function render() {
   if (view === 'home') renderHome();
   else if (view === 'entries') renderEntries();
   else if (view === 'goals') renderGoals();
+  else if (view === 'more') renderMore();
   else renderReports();
 }
 
@@ -243,6 +244,32 @@ function renderGoals() {
     <div class="screen-title">GOALS</div>
     <div class="addgoal"><button class="btn small ghost" data-act="add-goal">+ SET A GOAL</button></div>
     ${rows || '<div class="empty">No goals yet – set one and watch the money roll in 🍊</div>'}
+  </div>`;
+}
+
+/* ----- MORE ----- */
+
+const MORE_LINKS = [
+  { label: 'All my content, for free', sub: 'YouTube · @stopfckingabout', href: 'https://youtube.com/@stopfckingabout' },
+  { label: 'Meet Fab 🐧', sub: 'fabriziacosta.com', href: 'https://fabriziacosta.com' },
+];
+
+function renderMore() {
+  const startRow = `
+    <button class="morerow" data-act="show-start">
+      <div class="mr-text"><span class="mr-label">Start here</span><span class="mr-sub">How Zatsuma works</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </button>`;
+  const rows = MORE_LINKS.map(l => `
+    <a class="morerow" href="${l.href}" target="_blank" rel="noopener">
+      <div class="mr-text"><span class="mr-label">${l.label}</span><span class="mr-sub">${l.sub}</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M7 7h10v10"/></svg>
+    </a>`).join('');
+
+  $view.innerHTML = `<div class="screen">
+    <div class="screen-title">MORE FROM FAB</div>
+    ${startRow}
+    ${rows}
   </div>`;
 }
 
@@ -477,6 +504,7 @@ document.querySelector('nav.tabs').addEventListener('click', e => {
 });
 
 document.getElementById('fab').addEventListener('click', () => openEntrySheet());
+document.getElementById('more-btn').addEventListener('click', () => { view = 'more'; render(); });
 $scrim.addEventListener('click', closeSheet);
 
 $view.addEventListener('click', e => {
@@ -498,6 +526,7 @@ $view.addEventListener('click', e => {
       render();
     }
     if (a === 'export') exportCSV();
+    if (a === 'show-start') renderStart();
     return;
   }
   const row = e.target.closest('[data-entry]');
@@ -602,6 +631,30 @@ function account() {
 const PRIV_KEY = 'zatsuma-privacy-ack-v1';
 function privacyAcked() { return !!localStorage.getItem(PRIV_KEY); }
 
+const START_KEY = 'zatsuma-start-seen-v1';
+function startSeen() { return !!localStorage.getItem(START_KEY); }
+
+function renderStart() {
+  const gate = document.getElementById('gate');
+  gate.innerHTML = `
+    ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
+    <div class="gpriv-title">START HERE</div>
+    <div class="gpriv-body">
+      <p>Money finds you in all kinds of ways, so tap the + any time it happens. Pick MONEY for cash in, or VALUE for something worth money that isn't cash, like a gifted collab or a freebie.</p>
+      <p>Give each entry a category, its own name, colour and little icon, so the donut on HOME tells the story of your month at a glance. Set a goal and watch LEFT TO GO shrink as you go.</p>
+      <p><b>ENTRIES</b> is your full list day by day.</p>
+      <p><b>GOALS</b> tracks every month's target.</p>
+      <p><b>REPORTS</b> breaks it down by month, quarter, year or any custom stretch, and exports to CSV whenever you want it.</p>
+    </div>
+    <button class="btn" id="start-go">GOT IT, LET'S GO</button>
+  `;
+  gate.hidden = false;
+  document.getElementById('start-go').addEventListener('click', () => {
+    localStorage.setItem(START_KEY, new Date().toISOString());
+    gate.hidden = true;
+  });
+}
+
 function renderPrivacy() {
   const gate = document.getElementById('gate');
   gate.innerHTML = `
@@ -617,7 +670,7 @@ function renderPrivacy() {
   gate.hidden = false;
   document.getElementById('priv-go').addEventListener('click', () => {
     localStorage.setItem(PRIV_KEY, new Date().toISOString());
-    gate.hidden = true;
+    renderStart();
   });
 }
 
@@ -659,5 +712,6 @@ function renderGate() {
 if (!DEMO) {
   if (!account()) renderGate();
   else if (!privacyAcked()) renderPrivacy();
+  else if (!startSeen()) renderStart();
 }
 render();

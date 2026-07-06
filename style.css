@@ -39,6 +39,7 @@ body {
 
 /* ---------- header ---------- */
 header {
+  position: relative;
   background: var(--paper);
   display: flex; align-items: center; justify-content: center; gap: 12px;
   padding: 20px 20px 14px;
@@ -49,6 +50,14 @@ header {
 .wordmark {
   font-weight: 500; color: var(--rust); font-size: 23px; letter-spacing: 0.14em;
 }
+.more-btn {
+  position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  border: 1.5px solid var(--hairline); background: var(--paper); color: var(--rust);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.more-btn svg { width: 17px; height: 17px; }
+.more-btn:active { background: var(--wash); }
 
 /* ---------- scrolling view ---------- */
 main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -165,6 +174,18 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .entryrow .ev.money { color: var(--cat-pink); }
 .entryrow .ev.value { color: var(--leaf); }
 
+/* ---------- more (links) ---------- */
+.morerow {
+  display: flex; align-items: center; justify-content: space-between; gap: 13px;
+  margin: 0 18px 10px; padding: 16px 18px; width: calc(100% - 36px);
+  background: #fff; border: 1px solid var(--hairline); border-radius: var(--radius);
+  text-decoration: none; font-family: inherit; text-align: left; cursor: pointer;
+}
+.morerow .mr-text { display: flex; flex-direction: column; gap: 2px; }
+.morerow .mr-label { font-weight: 500; font-size: 16px; color: var(--ink); letter-spacing: 0.02em; }
+.morerow .mr-sub { font-size: 12.5px; color: var(--muted); }
+.morerow svg { width: 18px; height: 18px; color: var(--rust); flex-shrink: 0; }
+
 /* ---------- goals list ---------- */
 .goalrow {
   margin: 0 18px 9px; padding: 14px 16px 13px;
@@ -275,6 +296,11 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
 }
 .gate[hidden] { display: none; }
 .gate .glogo { width: 108px; height: 98px; }
+.gate .glogo .eye { transform-box: fill-box; transform-origin: center; animation: satsuma-blink 0.4s ease-in-out 0.6s 1; }
+@keyframes satsuma-blink {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.12); }
+}
 .gate .gword { font-weight: 500; color: var(--rust); font-size: 30px; letter-spacing: 0.14em; }
 .gate .gtag { font-size: 14.5px; color: var(--rust-dark); letter-spacing: 0.04em; margin-top: -6px; }
 .gate .gdots { display: flex; gap: 8px; margin-bottom: 4px; }
@@ -302,6 +328,7 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
 }
 .gate .gpriv-body { max-width: 300px; display: flex; flex-direction: column; gap: 12px; }
 .gate .gpriv-body p { font-size: 14px; color: var(--text); line-height: 1.55; text-align: center; margin: 0; }
+.gate .gpriv-body p b { color: var(--rust); letter-spacing: 0.04em; }
 
 /* money / value segmented toggle */
 .seg {

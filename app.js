@@ -701,12 +701,12 @@ function renderGate() {
   gate.innerHTML = `
     ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
     <div class="gword">ZATSUMA</div>
-    <div class="gtag">track your open flow of money</div>
+    <div class="gtag">track your money flow</div>
     <div class="gdots"><span></span><span></span><span></span><span></span></div>
     <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email">
     <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
     <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
-    <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🐧</label>
+    <label class="consent"><input type="checkbox" id="acc-consent"> Yes, I want Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
     <div class="gnote">No passwords here – we'll email you a link to confirm it's really you.</div>
@@ -777,7 +777,7 @@ function renderFinishAccount(email) {
     <div class="gpriv-body"><p>Confirmed as <b>${email}</b>. Just need a couple more things.</p></div>
     <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
     <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
-    <label class="consent"><input type="checkbox" id="acc-consent"> Send me Fab's emails 🐧</label>
+    <label class="consent"><input type="checkbox" id="acc-consent"> Yes, I want Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="finish-go">GOT IT, LET'S GO</button>
   `;

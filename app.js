@@ -466,6 +466,18 @@ function saveEntry() {
   curMonth = date.slice(0, 7);
   closeSheet();
   render();
+  if (sheetState.mode === 'add') celebrate();
+}
+
+/* the header satsuma blinks + flutters its leaves when money lands */
+function celebrate() {
+  const logo = document.querySelector('header .logo');
+  if (!logo) return;
+  logo.classList.remove('celebrate');
+  void logo.getBoundingClientRect();
+  logo.classList.add('celebrate');
+  clearTimeout(celebrate._t);
+  celebrate._t = setTimeout(() => logo.classList.remove('celebrate'), 1000);
 }
 
 /* ----- goal sheet ----- */

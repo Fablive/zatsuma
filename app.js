@@ -654,16 +654,14 @@ $sheet.addEventListener('focusin', e => {
    browser via the anon key + RLS – the public key can add a row but can never
    read the list back.
 
-   The email itself is verified via Supabase Auth's magic link: entering the
-   form doesn't create the account by itself, it sends a real email, and only
-   clicking that link (proof the person controls the inbox) finalises it. */
+   Signup completes right here, in one place: filling the form logs you
+   straight in. No magic-link round-trip – on an installed home-screen app the
+   email link always opens in Safari (which has separate storage), so the app
+   would never see the login and would keep asking people to sign up. A
+   confirm-your-email field guards against typos instead of a verification link. */
 
 const SUPABASE_URL = 'https://lmkqxqnlbrxqvesnokra.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxta3F4cW5sYnJ4cXZlc25va3JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyODIxMzQsImV4cCI6MjA5ODg1ODEzNH0.FkA85XMCA4IJc8oyG1wQw-mxeOHPd-Y8Pxj1V0RJeuo';
-/* implicit flow (not the default pkce) so the magic link works even if it's
-   opened on a different browser/device than the one that requested it –
-   testers checking mail on their phone after signing up elsewhere, etc. */
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { flowType: 'implicit' } });
 
 function recordSignup(payload) {
   fetch(`${SUPABASE_URL}/rest/v1/zatsuma_accounts`, {
@@ -683,18 +681,10 @@ function account() {
   try { return JSON.parse(localStorage.getItem(ACC_KEY)); } catch (e) { return null; }
 }
 
-const PENDING_KEY = 'zatsuma-pending-v1';
-function pendingSignup() {
-  try { return JSON.parse(localStorage.getItem(PENDING_KEY)); } catch (e) { return null; }
-}
-
 function finishAccount(email, name, country, consent) {
   localStorage.setItem(ACC_KEY, JSON.stringify({ email, name, country, consent, createdAt: new Date().toISOString() }));
   recordSignup({ email, name, country, consent });
-  localStorage.removeItem(PENDING_KEY);
-  // this is always a fresh identity completing signup, so always walk
-  // through privacy + start here – regardless of whether some other identity
-  // already saw them on this same device before.
+  // a fresh signup always walks through privacy + start here.
   renderPrivacy();
 }
 
@@ -751,89 +741,31 @@ function renderGate() {
     <div class="gword">ZATSUMA</div>
     <div class="gtag">track your money – watch it grow</div>
     <div class="gdots"><span></span><span></span><span></span><span></span></div>
-    <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email">
+    <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email" autocapitalize="off" spellcheck="false">
+    <input type="email" id="acc-email2" placeholder="your email again 😉" autocomplete="off" autocapitalize="off" spellcheck="false">
     <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
     <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
     <label class="consent"><input type="checkbox" id="acc-consent"> Yes, I want Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
-    <div class="gnote">No passwords here – we'll email you a link to confirm it's really you.</div>
+    <div class="gnote">Pop your email in twice so a typo can't sneak onto Fab's list.</div>
   `;
   gate.hidden = false;
-  document.getElementById('acc-go').addEventListener('click', async () => {
+  document.getElementById('acc-go').addEventListener('click', () => {
     const email = document.getElementById('acc-email').value.trim().toLowerCase();
+    const email2 = document.getElementById('acc-email2').value.trim().toLowerCase();
+    const err = document.getElementById('acc-err');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-      document.getElementById('acc-err').textContent = 'That email doesn’t look right yet';
+      err.textContent = 'That email doesn’t look right yet';
+      return;
+    }
+    if (email !== email2) {
+      err.textContent = 'Those two emails don’t match – typo somewhere?';
       return;
     }
     const name = document.getElementById('acc-name').value.trim();
     if (!name) {
-      document.getElementById('acc-err').textContent = 'Add your name too';
-      return;
-    }
-    const country = document.getElementById('acc-country').value.trim();
-    const consent = document.getElementById('acc-consent').checked;
-
-    const btn = document.getElementById('acc-go');
-    btn.disabled = true;
-    btn.textContent = 'SENDING…';
-    localStorage.setItem(PENDING_KEY, JSON.stringify({ email, name, country, consent }));
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: location.origin + location.pathname },
-    });
-    if (error) {
-      document.getElementById('acc-err').textContent = 'Couldn’t send that – try again in a minute';
-      btn.disabled = false;
-      btn.textContent = 'COME ON IN';
-      return;
-    }
-    renderCheckEmail(email);
-  });
-}
-
-function renderCheckEmail(email) {
-  const gate = document.getElementById('gate');
-  gate.innerHTML = `
-    ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
-    <div class="gpriv-title">CHECK YOUR EMAIL</div>
-    <div class="gpriv-body">
-      <p>We just sent a magic link to <b>${email}</b>. Tap it on this device to come on in – no password needed.</p>
-    </div>
-    <button class="btn ghost small" id="check-resend">RESEND LINK</button>
-    <div class="gnote"><a href="#" id="check-restart">Wrong email? Start over</a></div>
-  `;
-  gate.hidden = false;
-  document.getElementById('check-resend').addEventListener('click', async e => {
-    e.target.disabled = true;
-    e.target.textContent = 'SENT';
-    await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + location.pathname } });
-    setTimeout(() => { e.target.disabled = false; e.target.textContent = 'RESEND LINK'; }, 30000);
-  });
-  document.getElementById('check-restart').addEventListener('click', e => {
-    e.preventDefault();
-    localStorage.removeItem(PENDING_KEY);
-    renderGate();
-  });
-}
-
-function renderFinishAccount(email) {
-  const gate = document.getElementById('gate');
-  gate.innerHTML = `
-    ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
-    <div class="gpriv-title">ALMOST THERE</div>
-    <div class="gpriv-body"><p>Confirmed as <b>${email}</b>. Just need a couple more things.</p></div>
-    <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
-    <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
-    <label class="consent"><input type="checkbox" id="acc-consent"> Yes, I want Fab's emails 🐧</label>
-    <div class="gerr" id="acc-err"></div>
-    <button class="btn" id="finish-go">GOT IT, LET'S GO</button>
-  `;
-  gate.hidden = false;
-  document.getElementById('finish-go').addEventListener('click', () => {
-    const name = document.getElementById('acc-name').value.trim();
-    if (!name) {
-      document.getElementById('acc-err').textContent = 'Add your name too';
+      err.textContent = 'Add your name too';
       return;
     }
     const country = document.getElementById('acc-country').value.trim();
@@ -849,38 +781,13 @@ function hideSplash() {
   setTimeout(() => splash.remove(), 500);
 }
 
-(async function boot() {
+(function boot() {
   setTimeout(hideSplash, 3900);
   if (DEMO) { render(); return; }
 
-  const { data: { session } } = await sb.auth.getSession();
-  if (location.hash.includes('access_token') || location.search.includes('code=')) {
-    history.replaceState(null, '', location.pathname);
-  }
+  if (!account()) renderGate();
+  else if (!privacyAcked()) renderPrivacy();
+  else if (!startSeen()) renderStart();
 
-  const existing = account();
-  const verifiedEmail = session && session.user && session.user.email;
-
-  if (verifiedEmail && (!existing || existing.email !== verifiedEmail)) {
-    // a freshly-verified email that doesn't match this browser's current
-    // account (or there isn't one yet) – always show a visible confirmation
-    // rather than silently deciding what to do in the background. Doesn't
-    // touch the entries themselves, those live under a separate storage key
-    // regardless of which email is on the account.
-    const pending = pendingSignup();
-    if (pending && pending.email === verifiedEmail) {
-      finishAccount(pending.email, pending.name, pending.country, pending.consent);
-    } else {
-      renderFinishAccount(verifiedEmail);
-    }
-  } else if (!account()) {
-    const pending = pendingSignup();
-    if (pending) renderCheckEmail(pending.email);
-    else renderGate();
-  } else if (!privacyAcked()) {
-    renderPrivacy();
-  } else if (!startSeen()) {
-    renderStart();
-  }
   render();
 })();

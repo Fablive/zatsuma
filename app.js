@@ -369,6 +369,9 @@ function openSheet(html) {
 function closeSheet() {
   $scrim.classList.remove('open');
   $sheet.classList.remove('open');
+  $sheet.style.bottom = '';
+  $sheet.style.maxHeight = '';
+  window.scrollTo(0, 0);
 }
 
 /* ----- entry sheet (add + edit) ----- */
@@ -627,7 +630,21 @@ if (window.visualViewport) {
   vv.addEventListener('resize', lift);
   vv.addEventListener('scroll', lift);
 }
-window.addEventListener('focusout', () => setTimeout(() => window.scrollTo(0, 0), 60));
+window.addEventListener('focusout', () => setTimeout(() => {
+  /* nothing focused any more? keyboard is gone – clear the lift and re-anchor */
+  const el = document.activeElement;
+  if (!el || el === document.body || !$sheet.contains(el)) {
+    $sheet.style.bottom = '';
+    $sheet.style.maxHeight = '';
+  }
+  window.scrollTo(0, 0);
+}, 80));
+
+/* keep whichever field is being typed in visible inside the sheet */
+$sheet.addEventListener('focusin', e => {
+  const el = e.target;
+  setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+});
 
 /* ---------- login gate ----------
    The account (email, name, country, consent) is stored on the device, and

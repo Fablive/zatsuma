@@ -1,7 +1,7 @@
 {
   "name": "Zatsuma",
   "short_name": "Zatsuma",
-  "description": "track your open flow of money",
+  "description": "track your money – watch it grow",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

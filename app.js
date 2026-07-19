@@ -702,7 +702,7 @@ function renderGate() {
   gate.innerHTML = `
     ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
     <div class="gword">ZATSUMA</div>
-    <div class="gtag">track your money flow</div>
+    <div class="gtag">track your money – watch it grow</div>
     <div class="gdots"><span></span><span></span><span></span><span></span></div>
     <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email">
     <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
@@ -799,11 +799,11 @@ function hideSplash() {
   const splash = document.getElementById('splash');
   if (!splash) return;
   splash.classList.add('hide');
-  setTimeout(() => splash.remove(), 400);
+  setTimeout(() => splash.remove(), 500);
 }
 
 (async function boot() {
-  setTimeout(hideSplash, 1400);
+  setTimeout(hideSplash, 3900);
   if (DEMO) { render(); return; }
 
   const { data: { session } } = await sb.auth.getSession();

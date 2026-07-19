@@ -47,18 +47,18 @@ body {
 }
 .splash.hide { opacity: 0; pointer-events: none; }
 .splash .spdrop { transform-origin: 50% 100%; animation: sp-bounce 1.05s ease-in both; }
-.splash .splogo { width: 130px; height: 117px; display: block; overflow: visible; }
+.splash .splogo { width: 195px; height: 176px; display: block; overflow: visible; }
 .splash .splogo .eye { transform-box: fill-box; transform-origin: center; animation: sp-blink 1.1s ease-in-out 1.15s 1; }
 .splash .splogo .smile { transform-box: fill-box; transform-origin: 50% 0%; animation: sp-smile 0.35s ease-out 2.4s forwards; }
 .splash .splogo .leaf { transform-box: fill-box; transform-origin: 50% 100%; }
 .splash .splogo .leafL { animation: sp-wiggle-l 0.55s ease-in-out 2.4s 1; }
 .splash .splogo .leafR { animation: sp-wiggle-r 0.55s ease-in-out 2.4s 1; }
 .splash .spword {
-  font-weight: 500; color: var(--rust); font-size: 28px; letter-spacing: 0.14em;
+  font-weight: 500; color: var(--rust); font-size: 42px; letter-spacing: 0.14em;
   opacity: 0; animation: sp-fadeup 0.45s ease-out 0.7s both;
 }
 .splash .sptag {
-  font-size: 14px; color: var(--rust-dark); letter-spacing: 0.04em;
+  font-size: 21px; color: var(--rust-dark); letter-spacing: 0.04em;
   text-align: center; line-height: 1.5;
 }
 .splash .sptag .spline1 { opacity: 0; animation: sp-fadeup 0.45s ease-out 1.45s both; }

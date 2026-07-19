@@ -748,7 +748,7 @@ function renderGate() {
     <label class="consent"><input type="checkbox" id="acc-consent"> Yes, I want Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
-    <div class="gnote">Pop your email in twice so a typo can't sneak in.</div>
+    <div class="gnote">Pop your email in twice<br>so a typo can't sneak in.</div>
   `;
   gate.hidden = false;
   document.getElementById('acc-go').addEventListener('click', () => {

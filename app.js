@@ -725,7 +725,7 @@ function renderPrivacy() {
       <p>Every entry, every goal, every number you type into Zatsuma stays on your phone. It's stored locally in your browser. I don't receive it, I don't store it, I can't see it.</p>
     </div>
     <button class="btn" id="priv-go">GOT IT, LET'S GO</button>
-    <div class="gnote">Track whatever you like – it's yours and only yours 🍊</div>
+    <div class="gnote">Your numbers never leave your phone. 🍊</div>
   `;
   gate.hidden = false;
   document.getElementById('priv-go').addEventListener('click', () => {
@@ -748,7 +748,7 @@ function renderGate() {
     <label class="consent"><input type="checkbox" id="acc-consent"> Yes, I want Fab's emails 🐧</label>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
-    <div class="gnote">Pop your email in twice so a typo can't sneak onto Fab's list.</div>
+    <div class="gnote">Pop your email in twice so a typo can't sneak in.</div>
   `;
   gate.hidden = false;
   document.getElementById('acc-go').addEventListener('click', () => {

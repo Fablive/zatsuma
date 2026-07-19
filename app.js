@@ -795,7 +795,15 @@ function renderFinishAccount(email) {
   });
 }
 
+function hideSplash() {
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  splash.classList.add('hide');
+  setTimeout(() => splash.remove(), 400);
+}
+
 (async function boot() {
+  setTimeout(hideSplash, 1400);
   if (DEMO) { render(); return; }
 
   const { data: { session } } = await sb.auth.getSession();

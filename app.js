@@ -611,6 +611,24 @@ $sheet.addEventListener('click', e => {
   }
 });
 
+/* ---------- keyboard taming (iOS) ----------
+   The on-screen keyboard shrinks the *visual* viewport but not the layout.
+   Lift the bottom sheet above it, cap its height so the SAVE button stays
+   reachable, and snap the page back to the top whenever the keyboard goes. */
+
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const lift = () => {
+    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    $sheet.style.bottom = kb ? kb + 'px' : '';
+    $sheet.style.maxHeight = kb ? Math.round(vv.height * 0.92) + 'px' : '';
+    if (!kb) window.scrollTo(0, 0);
+  };
+  vv.addEventListener('resize', lift);
+  vv.addEventListener('scroll', lift);
+}
+window.addEventListener('focusout', () => setTimeout(() => window.scrollTo(0, 0), 60));
+
 /* ---------- login gate ----------
    The account (email, name, country, consent) is stored on the device, and
    the app itself (all money/value entries) never leaves it either way.

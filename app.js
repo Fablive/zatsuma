@@ -614,12 +614,18 @@ $sheet.addEventListener('click', e => {
   }
 });
 
-/* ---------- keyboard taming (iOS) ----------
-   The on-screen keyboard shrinks the *visual* viewport but not the layout.
-   Lift the bottom sheet above it, cap its height so the SAVE button stays
-   reachable, and snap the page back to the top whenever the keyboard goes. */
+/* ---------- keyboard taming (iOS only) ----------
+   iOS Safari shrinks the *visual* viewport when the keyboard opens but
+   leaves window.innerHeight (the layout viewport) unchanged, so nothing
+   reflows around the keyboard on its own – that's what this lifts the
+   sheet to fix. Android resizes the layout viewport itself when its
+   keyboard opens, so this same visualViewport math fights the browser's
+   own correct reflow instead of helping – that's what was leaving the
+   Add Entry sheet stuck on Android. Gate it to iOS only. */
 
-if (window.visualViewport) {
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+if (isIOS && window.visualViewport) {
   const vv = window.visualViewport;
   const lift = () => {
     const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);

@@ -13,6 +13,8 @@ const VALUE_CAT = { id: '__value', name: 'Value', color: '#5a9e3d',
   icon: `<svg viewBox="0 0 24 24" style="width:22px;height:22px;display:block">
     <path d="M20 4 C10 4 4 10 4 18 C4 19 4.4 20 5 20 C5.5 20 6 19.6 6.3 19 C8 15 11 11.5 15 9.5 C11.5 12.5 9 16 8 19.5 C8.6 19.8 9.3 20 10 20 C16 20 20 13 20 4 Z" fill="#5a9e3d"/>
   </svg>` };
+/* money entries saved with no category picked land here instead of being blocked */
+const UNCAT = { id: null, name: 'Uncategorised', color: '#8e8e8e', icon: '❔' };
 
 /* ---------- data ---------- */
 
@@ -82,8 +84,7 @@ function catTotals(list) {
   const map = {};
   for (const e of list) map[e.catId] = (map[e.catId] || 0) + e.amount;
   return Object.entries(map)
-    .map(([id, total]) => ({ cat: cat(id), total }))
-    .filter(x => x.cat)
+    .map(([id, total]) => ({ cat: cat(id) || UNCAT, total }))
     .sort((a, b) => b.total - a.total);
 }
 
@@ -204,7 +205,7 @@ function renderEntries() {
         const d = new Date(e.date + 'T12:00');
         body += `<div class="daysep">${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric' }).toUpperCase()}</div>`;
       }
-      const c = e.kind === 'value' ? VALUE_CAT : (cat(e.catId) || { name: '?', color: '#ccc', icon: '❓' });
+      const c = e.kind === 'value' ? VALUE_CAT : (cat(e.catId) || UNCAT);
       body += `<div class="entryrow" data-entry="${e.id}">
         <div class="ei" style="background:${c.color}26">${c.icon}</div>
         <div class="en"><div class="nm">${esc(c.name)}</div></div>
@@ -351,7 +352,7 @@ function exportCSV() {
   const q = s => `"${String(s).replace(/"/g, '""')}"`;
   const rows = [['date', 'type', 'category', 'amount']]
     .concat(list.map(e => [e.date, e.kind,
-      e.kind === 'value' ? 'Value' : (cat(e.catId) || { name: '' }).name, e.amount]))
+      e.kind === 'value' ? 'Value' : (cat(e.catId) || UNCAT).name, e.amount]))
     .map(r => r.map(q).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([rows], { type: 'text/csv' }));
@@ -457,7 +458,6 @@ function saveEntry() {
   const date = document.getElementById('e-date').value;
   if (!amount) { document.getElementById('e-amt').focus(); return; }
   const isValue = sheetState.kind === 'value';
-  if (!isValue && !sheetState.catId) { sheetState.showNewCat = true; refreshEntrySheet(); return; }
   if (!date) return;
   const catId = isValue ? null : sheetState.catId;
   if (sheetState.mode === 'edit') {

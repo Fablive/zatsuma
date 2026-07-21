@@ -252,6 +252,7 @@ function renderGoals() {
 const MORE_LINKS = [
   { label: 'All my content, for free', sub: 'YouTube · @stopfckingabout', href: 'https://youtube.com/@stopfckingabout' },
   { label: 'Meet Fab 🐧', sub: 'fabriziacosta.com', href: 'https://fabriziacosta.com' },
+  { label: 'Something not working? Tell me', sub: 'fab@fabriziacosta.com', href: 'mailto:fab@fabriziacosta.com?subject=Zatsuma%20beta' },
 ];
 
 function renderMore() {

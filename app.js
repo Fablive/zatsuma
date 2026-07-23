@@ -5,16 +5,12 @@ const DEMO = new URLSearchParams(location.search).has('demo');
 const LS_KEY = DEMO ? 'zatsuma-demo' : 'zatsuma-v1';
 
 const CAT_COLOURS = ['#e62d64', '#ec008b', '#119fe0', '#2d5be6', '#6a4fd8', '#00a887', '#94c11f', '#ffce4e'];
-const CAT_EMOJI = ['🎨','💬','🎤','💼','✍️','📚','🛍️','🎁','💐','🏠','🚗','✈️','🍽️','☕','💻','📈','🧘','💅','🐾','🎬','🎵','🌿','✨','💎'];
 const DONUT_C = 2 * Math.PI * 38;
 /* VALUE is its own built-in category – leaf green, no user category needed.
-   Icon is a drawn leaf (Fab's pick – crisper than any emoji at row size). */
-const VALUE_CAT = { id: '__value', name: 'Value', color: '#5a9e3d',
-  icon: `<svg viewBox="0 0 24 24" style="width:22px;height:22px;display:block">
-    <path d="M20 4 C10 4 4 10 4 18 C4 19 4.4 20 5 20 C5.5 20 6 19.6 6.3 19 C8 15 11 11.5 15 9.5 C11.5 12.5 9 16 8 19.5 C8.6 19.8 9.3 20 10 20 C16 20 20 13 20 4 Z" fill="#5a9e3d"/>
-  </svg>` };
+   Shown, like every category, as a coloured dot with its first initial ("V"). */
+const VALUE_CAT = { id: '__value', name: 'Value', color: '#5a9e3d' };
 /* money entries saved with no category picked land here instead of being blocked */
-const UNCAT = { id: null, name: 'Uncategorised', color: '#8e8e8e', icon: '❔' };
+const UNCAT = { id: null, name: 'Uncategorised', color: '#8e8e8e' };
 
 /* ---------- data ---------- */
 
@@ -72,6 +68,8 @@ function parseAmount(s) {
 }
 function cat(id) { return db.categories.find(c => c.id === id); }
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+/* the little dot on each entry now carries the category's first initial */
+function initialOf(c) { return (c && c.name ? c.name.trim().charAt(0) : '?').toUpperCase(); }
 
 function entriesInMonth(mk) { return db.entries.filter(e => e.date.startsWith(mk)); }
 function entriesInRange(from, to) { return db.entries.filter(e => e.date >= from && e.date <= to); }
@@ -207,7 +205,7 @@ function renderEntries() {
       }
       const c = e.kind === 'value' ? VALUE_CAT : (cat(e.catId) || UNCAT);
       body += `<div class="entryrow" data-entry="${e.id}">
-        <div class="ei" style="background:${c.color}26">${c.icon}</div>
+        <div class="ei" style="background:${c.color}">${esc(initialOf(c))}</div>
         <div class="en"><div class="nm">${esc(c.name)}</div></div>
         <div class="ev ${e.kind}">${fmt(e.amount)}</div>
       </div>`;
@@ -386,7 +384,7 @@ function openEntrySheet(entry) {
     id: entry ? entry.id : null,
     kind: entry ? entry.kind : 'money',
     catId: entry ? entry.catId : (db.categories[0] ? db.categories[0].id : null),
-    newCat: { color: CAT_COLOURS[0], icon: CAT_EMOJI[0] },
+    newCat: { color: CAT_COLOURS[0] },
     showNewCat: !db.categories.length,
   };
   openSheet(`
@@ -406,8 +404,6 @@ function openEntrySheet(entry) {
       <input class="name-input" id="nc-name" placeholder="Name" maxlength="24">
       <div class="sheet-label">COLOUR</div>
       <div class="swatches" id="nc-swatches"></div>
-      <div class="sheet-label">ICON</div>
-      <div class="emojigrid" id="nc-emoji"></div>
       <div class="sheet-actions" style="margin-top:14px">
         <button class="btn small" data-act="create-cat">ADD CATEGORY</button>
       </div>
@@ -440,7 +436,7 @@ function refreshEntrySheet() {
     const on = c.id === s.catId;
     return `<button class="catchip" data-cat="${c.id}"
       style="${on ? `background:${c.color};border-color:${c.color};color:#fff` : `border-color:${c.color}55`}">
-      ${c.icon} ${esc(c.name)}</button>`;
+      ${esc(c.name)}</button>`;
   }).join('') + `<button class="catchip new" data-act="toggle-newcat">+ NEW</button>`;
 
   const nc = document.getElementById('newcat');
@@ -448,8 +444,6 @@ function refreshEntrySheet() {
   if (s.showNewCat) {
     document.getElementById('nc-swatches').innerHTML = CAT_COLOURS.map(c =>
       `<button class="swatch ${c === s.newCat.color ? 'on' : ''}" data-colour="${c}" style="background:${c}"></button>`).join('');
-    document.getElementById('nc-emoji').innerHTML = CAT_EMOJI.map(e =>
-      `<button class="${e === s.newCat.icon ? 'on' : ''}" data-emoji="${e}">${e}</button>`).join('');
   }
 }
 
@@ -578,9 +572,6 @@ $sheet.addEventListener('click', e => {
   const sw = e.target.closest('[data-colour]');
   if (sw) { sheetState.newCat.color = sw.dataset.colour; refreshEntrySheet(); return; }
 
-  const em = e.target.closest('[data-emoji]');
-  if (em) { sheetState.newCat.icon = em.dataset.emoji; refreshEntrySheet(); return; }
-
   const act = e.target.closest('[data-act]');
   if (!act) return;
   const a = act.dataset.act;
@@ -592,7 +583,7 @@ $sheet.addEventListener('click', e => {
   if (a === 'create-cat') {
     const name = document.getElementById('nc-name').value.trim();
     if (!name) { document.getElementById('nc-name').focus(); return; }
-    const c = { id: uid(), name, color: sheetState.newCat.color, icon: sheetState.newCat.icon };
+    const c = { id: uid(), name, color: sheetState.newCat.color };
     db.categories.push(c);
     save();
     sheetState.catId = c.id;
@@ -708,7 +699,7 @@ function renderStart() {
     <div class="gpriv-title">START HERE</div>
     <div class="gpriv-body">
       <p>Money finds you in all kinds of ways, so tap the + any time it happens. Pick MONEY for cash in, or VALUE for something worth money that isn't cash, like a gifted collab or a freebie.</p>
-      <p>Give each entry a category, its own name, colour and little icon, so the donut on HOME tells the story of your month at a glance. Set a goal and watch LEFT TO GO shrink as you go.</p>
+      <p>Give each entry a category with its own name and colour, so the donut on HOME tells the story of your month at a glance and every entry in your list gets a matching coloured dot. Set a goal and watch LEFT TO GO shrink as you go.</p>
       <p><b>ENTRIES</b> is your full list day by day.</p>
       <p><b>GOALS</b> tracks every month's target.</p>
       <p><b>REPORTS</b> breaks it down by month, quarter, year or any custom stretch, and exports to CSV whenever you want it.</p>

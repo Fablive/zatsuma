@@ -623,6 +623,13 @@ if (isIOS && window.visualViewport) {
     const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     $sheet.style.bottom = kb ? kb + 'px' : '';
     $sheet.style.maxHeight = kb ? Math.round(vv.height * 0.92) + 'px' : '';
+    /* same trick for the sign-up screen: when the keyboard is up, stop centring,
+       pad the bottom by the keyboard height so every field can scroll into view */
+    const gate = document.getElementById('gate');
+    if (gate && !gate.hidden) {
+      gate.classList.toggle('kbd', !!kb);
+      gate.style.paddingBottom = kb ? (32 + kb) + 'px' : '';
+    }
     if (!kb) window.scrollTo(0, 0);
   };
   vv.addEventListener('resize', lift);
@@ -642,6 +649,14 @@ window.addEventListener('focusout', () => setTimeout(() => {
 $sheet.addEventListener('focusin', e => {
   const el = e.target;
   setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+});
+
+/* same on the sign-up screen: scroll the tapped field up above the keyboard */
+document.getElementById('gate').addEventListener('focusin', e => {
+  const el = e.target;
+  if (el && el.tagName === 'INPUT') {
+    setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+  }
 });
 
 /* ---------- login gate ----------

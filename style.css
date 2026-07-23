@@ -373,7 +373,10 @@ nav.tabs .tab svg { width: 21px; height: 21px; }
   position: absolute; inset: 0; z-index: 20; background: var(--paper);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 14px; padding: 32px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
+/* while the keyboard is open, stop centring and let the fields scroll up into view */
+.gate.kbd { justify-content: flex-start; }
 .gate[hidden] { display: none; }
 .gate .glogo { width: 108px; height: 98px; }
 .gate .glogo .eye { transform-box: fill-box; transform-origin: center; animation: satsuma-blink 2.5s ease-in-out 0.5s 1; }

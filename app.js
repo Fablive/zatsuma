@@ -157,7 +157,7 @@ function renderHome() {
   } else if (!goal) {
     cheer = total > 0 ? `<div class="cheer">${fmt(total)} tracked this month – beautiful ✨</div>` : '';
   } else if (total >= goal) {
-    cheer = `<div class="cheer">Goal reached – ${fmt(total)}! 🎉</div>`;
+    cheer = `<div class="cheer">Whoot whoot – you smashed it! 🎉</div>`;
   } else if (total / goal >= 0.75) {
     cheer = `<div class="cheer">Only ${fmt(left)} to go – you can do this! 💥</div>`;
   } else if (total / goal >= 0.5) {
@@ -435,7 +435,7 @@ function refreshEntrySheet() {
   grid.innerHTML = db.categories.map(c => {
     const on = c.id === s.catId;
     return `<button class="catchip" data-cat="${c.id}"
-      style="${on ? `background:${c.color};border-color:${c.color};color:#fff` : `border-color:${c.color}55`}">
+      style="${on ? `background:${c.color};border-color:${c.color};color:#fff` : `background:${c.color}22;border-color:${c.color};color:var(--ink)`}">
       ${esc(c.name)}</button>`;
   }).join('') + `<button class="catchip new" data-act="toggle-newcat">+ NEW</button>`;
 

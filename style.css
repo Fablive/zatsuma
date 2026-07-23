@@ -185,7 +185,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .goalsetter input:focus { outline: none; border-color: var(--rust); }
 
 /* ---------- donut ---------- */
-.donut-wrap { display: flex; justify-content: center; padding: 14px 0 2px; }
+.donut-wrap { display: flex; justify-content: center; padding: 8px 0 0; }
 .donut-box { position: relative; width: 232px; height: 232px; }
 .donut { width: 232px; height: 232px; display: block; }
 .donut-centre {
@@ -196,16 +196,16 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 .legend {
   display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;
-  padding: 14px 20px 4px; font-size: 15px; font-weight: 400; color: var(--text);
+  padding: 6px 20px 2px; font-size: 15px; font-weight: 400; color: var(--text);
 }
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
 .legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
 
 /* ---------- stat cards ---------- */
-.stats { padding: 18px 18px 0; display: flex; flex-direction: column; gap: 9px; }
+.stats { padding: 10px 18px 0; display: flex; flex-direction: column; gap: 7px; }
 .stat {
   background: #fff; border: 1px solid var(--hairline); border-radius: var(--radius);
-  padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 18px; display: flex; justify-content: space-between; align-items: center;
 }
 .stat .k { font-size: 13px; font-weight: 500; letter-spacing: 0.2em; color: var(--muted); }
 .stat .v { font-weight: 500; font-size: 24px; color: var(--ink); }
@@ -215,7 +215,7 @@ main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 /* ---------- encouragement ---------- */
 .cheer {
-  margin: 14px 18px 0; background: #fdeef3; color: var(--cat-pink);
+  margin: 10px 18px 0; background: #fdeef3; color: var(--cat-pink);
   border-radius: var(--radius); padding: 13px 16px; text-align: center;
   font-weight: 500; font-size: 16px; letter-spacing: 0.02em;
 }

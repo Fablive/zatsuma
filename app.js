@@ -623,12 +623,22 @@ if (isIOS && window.visualViewport) {
     const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     $sheet.style.bottom = kb ? kb + 'px' : '';
     $sheet.style.maxHeight = kb ? Math.round(vv.height * 0.92) + 'px' : '';
-    /* same trick for the sign-up screen: when the keyboard is up, stop centring,
-       pad the bottom by the keyboard height so every field can scroll into view */
+    /* sign-up screen: shrink it to exactly the space above the keyboard and pin it
+       to the visible area, so fields scroll inside that box and can't hide under
+       the keyboard or bounce back beneath it */
     const gate = document.getElementById('gate');
     if (gate && !gate.hidden) {
-      gate.classList.toggle('kbd', !!kb);
-      gate.style.paddingBottom = kb ? (32 + kb) + 'px' : '';
+      if (kb) {
+        gate.classList.add('kbd');
+        gate.style.top = vv.offsetTop + 'px';
+        gate.style.bottom = 'auto';
+        gate.style.height = vv.height + 'px';
+      } else {
+        gate.classList.remove('kbd');
+        gate.style.top = '';
+        gate.style.bottom = '';
+        gate.style.height = '';
+      }
     }
     if (!kb) window.scrollTo(0, 0);
   };

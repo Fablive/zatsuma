@@ -1,0 +1,46 @@
+# Keeps the Supabase free-tier project awake.
+# Supabase pauses free projects after 7 days with no API activity —
+# this pings the database twice a week so that never happens.
+# The key below is the public anon key (already visible in app.js), not a secret.
+
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '0 8 * * 1,4' # Mondays and Thursdays, 08:00 UTC
+  workflow_dispatch: {} # allows a manual run from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxta3F4cW5sYnJ4cXZlc25va3JhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyODIxMzQsImV4cCI6MjA5ODg1ODEzNH0.FkA85XMCA4IJc8oyG1wQw-mxeOHPd-Y8Pxj1V0RJeuo"
+          curl -sf -o /dev/null \
+            "https://lmkqxqnlbrxqvesnokra.supabase.co/rest/v1/zatsuma_accounts?select=created_at&limit=1" \
+            -H "apikey: $KEY" \
+            -H "Authorization: Bearer $KEY"
+          echo "Supabase pinged OK"
+
+      # GitHub silently disables scheduled workflows in repos with no commits
+      # for 60 days. If the repo has been quiet for 50+ days, push an empty
+      # commit to keep this workflow alive.
+      - name: Keep workflow enabled
+        run: |
+          git clone --depth 1 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" repo
+          cd repo
+          LAST=$(git log -1 --format=%ct)
+          NOW=$(date +%s)
+          DAYS=$(( (NOW - LAST) / 86400 ))
+          if [ "$DAYS" -gt 50 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "keep-alive: prevent scheduled workflow from being disabled"
+            git push
+          else
+            echo "Last commit ${DAYS} days ago — nothing to do"
+          fi

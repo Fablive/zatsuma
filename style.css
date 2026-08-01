@@ -28,7 +28,7 @@ body {
 }
 /* phones: pin the app to the screen so the iOS keyboard can't scroll it away */
 @media (max-width: 500px) {
-  html, body { height: 100%; overflow: hidden; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   body { position: fixed; inset: 0; min-height: 0; }
 }
 .app {
@@ -141,12 +141,13 @@ header {
 .more-btn:active { opacity: 0.85; }
 
 /* ---------- scrolling view ---------- */
-/* overscroll-behavior kills iOS's elastic rubber-band bounce, so a screen that
-   already fits can't be dragged up and down and spring back. Screens taller than
-   the viewport still scroll normally. */
+/* overscroll-behavior: none kills iOS's elastic rubber-band bounce outright, so a
+   screen that already fits can't be dragged up and down and spring back. (contain
+   only stops the drag reaching the page behind – none stops the local bounce too.)
+   Screens taller than the viewport still scroll normally. */
 main {
   flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overscroll-behavior: none;
 }
 .screen { padding-bottom: 130px; }
 

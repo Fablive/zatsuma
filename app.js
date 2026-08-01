@@ -62,8 +62,43 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 function fmt(n) { return n.toLocaleString('en-GB', { maximumFractionDigits: 2 }); }
+
+/* what this phone uses as its decimal mark: "," in Italy/most of Europe, "." in UK/US */
+function localeDecimalSep() {
+  const m = (1.1).toLocaleString().match(/[.,]/);
+  return m ? m[0] : '.';
+}
+
+/* Read a typed amount whether the person uses a comma or a point for the decimal.
+   "1,2" and "1.2" both mean one-point-two; "1,200" / "1.200" both mean twelve hundred.
+   The shape of the number decides; only the truly ambiguous single-separator-plus-
+   three-digits case (1,200 vs 1.200) leans on the phone's own number format. */
 function parseAmount(s) {
-  const n = parseFloat(String(s).replace(/,/g, '').trim());
+  s = String(s).trim().replace(/[^\d.,]/g, ''); // drop currency symbols, spaces, etc.
+  if (!s) return null;
+  let norm;
+  const hasDot = s.includes('.'), hasComma = s.includes(',');
+  if (hasDot && hasComma) {
+    // both present – the rightmost one is the decimal mark, the other groups thousands
+    const dec = s.lastIndexOf('.') > s.lastIndexOf(',') ? '.' : ',';
+    const grp = dec === '.' ? ',' : '.';
+    norm = s.split(grp).join('').replace(dec, '.');
+  } else if (hasDot || hasComma) {
+    const sep = hasComma ? ',' : '.';
+    const parts = s.split(sep);
+    const after = parts[parts.length - 1];
+    if (parts.length > 2) {
+      norm = parts.join('');                       // 1,000,000 → grouping, strip it
+    } else if (after.length === 3) {
+      norm = localeDecimalSep() === sep            // 1,200 vs 1.200 – ambiguous, ask the phone
+        ? parts.join('.') : parts.join('');
+    } else {
+      norm = parts.join('.');                       // 1,2 / 12,50 / 5. → decimal mark
+    }
+  } else {
+    norm = s;
+  }
+  const n = parseFloat(norm);
   return isFinite(n) && n > 0 ? n : null;
 }
 function cat(id) { return db.categories.find(c => c.id === id); }
@@ -106,6 +141,7 @@ function render() {
   else if (view === 'entries') renderEntries();
   else if (view === 'goals') renderGoals();
   else if (view === 'more') renderMore();
+  else if (view === 'categories') renderCategories();
   else renderReports();
 }
 
@@ -261,6 +297,11 @@ function renderMore() {
       <div class="mr-text"><span class="mr-label">Start here</span><span class="mr-sub">How Zatsuma works</span></div>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
     </button>`;
+  const catsRow = `
+    <button class="morerow" data-act="show-cats">
+      <div class="mr-text"><span class="mr-label">Categories</span><span class="mr-sub">Rename, recolour or remove</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </button>`;
   const rows = MORE_LINKS.map(l => `
     <a class="morerow" href="${l.href}" target="_blank" rel="noopener">
       <div class="mr-text"><span class="mr-label">${l.label}</span><span class="mr-sub">${l.sub}</span></div>
@@ -270,7 +311,28 @@ function renderMore() {
   $view.innerHTML = `<div class="screen">
     <div class="screen-title">MORE FROM FAB</div>
     ${startRow}
+    ${catsRow}
     ${rows}
+  </div>`;
+}
+
+/* ----- CATEGORIES (manage) ----- */
+
+function renderCategories() {
+  const rows = db.categories.map(c => {
+    const n = db.entries.filter(e => e.kind !== 'value' && e.catId === c.id).length;
+    const count = n ? `${n} ${n === 1 ? 'entry' : 'entries'}` : 'no entries yet';
+    return `<button class="catmanrow" data-cat-edit="${c.id}">
+      <span class="cm-dot" style="background:${c.color}">${esc(initialOf(c))}</span>
+      <span class="cm-text"><span class="cm-name">${esc(c.name)}</span><span class="cm-sub">${count}</span></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </button>`;
+  }).join('');
+  $view.innerHTML = `<div class="screen">
+    <button class="backrow" data-act="back-more">‹ MORE FROM FAB</button>
+    <div class="screen-title">CATEGORIES</div>
+    ${rows || '<div class="empty">No categories yet – add one when you save an entry, or start here 🍊</div>'}
+    <div class="addgoal"><button class="btn small ghost" data-act="add-cat">+ NEW CATEGORY</button></div>
   </div>`;
 }
 
@@ -507,6 +569,57 @@ function saveGoal() {
   render();
 }
 
+/* ----- category sheet (edit + new, from the manage screen) ----- */
+
+let catSheet = null;
+
+function openCategorySheet(c) {
+  catSheet = { id: c ? c.id : null, color: c ? c.color : CAT_COLOURS[0] };
+  const n = c ? db.entries.filter(e => e.kind !== 'value' && e.catId === c.id).length : 0;
+  openSheet(`
+    <div class="sheet-head">${c ? 'EDIT CATEGORY' : 'NEW CATEGORY'}</div>
+    <div class="sheet-label">NAME</div>
+    <input class="name-input" id="cat-name" placeholder="Name" maxlength="24" value="${c ? esc(c.name) : ''}">
+    <div class="sheet-label">COLOUR</div>
+    <div class="swatches" id="cat-swatches"></div>
+    <div class="sheet-actions">
+      <button class="btn" data-act="save-cat">SAVE</button>
+      ${c ? '<button class="btn danger" data-act="delete-cat">DELETE</button>' : ''}
+    </div>
+    ${c && n ? `<div class="hint">Deleting keeps your ${n} ${n === 1 ? 'entry' : 'entries'} – they just move to Uncategorised.</div>` : ''}
+  `);
+  renderCatSwatches();
+  setTimeout(() => document.getElementById('cat-name').focus(), 280);
+}
+
+function renderCatSwatches() {
+  document.getElementById('cat-swatches').innerHTML = CAT_COLOURS.map(col =>
+    `<button class="swatch ${col === catSheet.color ? 'on' : ''}" data-catcolour="${col}" style="background:${col}"></button>`).join('');
+}
+
+function saveCategory() {
+  const name = document.getElementById('cat-name').value.trim();
+  if (!name) { document.getElementById('cat-name').focus(); return; }
+  if (catSheet.id) {
+    const c = cat(catSheet.id);
+    if (c) { c.name = name; c.color = catSheet.color; }
+  } else {
+    db.categories.push({ id: uid(), name, color: catSheet.color });
+  }
+  save();
+  closeSheet();
+  render();
+}
+
+function deleteCategory() {
+  db.categories = db.categories.filter(c => c.id !== catSheet.id);
+  /* entries keep their catId; a category that no longer exists renders as
+     Uncategorised (cat() returns undefined → UNCAT). Nothing is lost. */
+  save();
+  closeSheet();
+  render();
+}
+
 /* ---------- events ---------- */
 
 document.querySelector('nav.tabs').addEventListener('click', e => {
@@ -538,8 +651,13 @@ $view.addEventListener('click', e => {
     }
     if (a === 'export') exportCSV();
     if (a === 'show-start') renderStart();
+    if (a === 'show-cats') { view = 'categories'; render(); }
+    if (a === 'back-more') { view = 'more'; render(); }
+    if (a === 'add-cat') openCategorySheet(null);
     return;
   }
+  const ce = e.target.closest('[data-cat-edit]');
+  if (ce) { openCategorySheet(cat(ce.dataset.catEdit)); return; }
   const row = e.target.closest('[data-entry]');
   if (row) { openEntrySheet(db.entries.find(x => x.id === row.dataset.entry)); return; }
   const gr = e.target.closest('[data-goal-month]');
@@ -573,6 +691,9 @@ $sheet.addEventListener('click', e => {
   const sw = e.target.closest('[data-colour]');
   if (sw) { sheetState.newCat.color = sw.dataset.colour; refreshEntrySheet(); return; }
 
+  const csw = e.target.closest('[data-catcolour]');
+  if (csw) { catSheet.color = csw.dataset.catcolour; renderCatSwatches(); return; }
+
   const act = e.target.closest('[data-act]');
   if (!act) return;
   const a = act.dataset.act;
@@ -598,6 +719,8 @@ $sheet.addEventListener('click', e => {
     closeSheet();
     render();
   }
+  if (a === 'save-cat') saveCategory();
+  if (a === 'delete-cat') deleteCategory();
   if (a === 'save-goal') saveGoal();
   if (a === 'delete-goal') {
     delete db.goals[document.getElementById('g-month').value];

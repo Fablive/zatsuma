@@ -305,8 +305,9 @@ const MORE_LINKS = [
   { label: 'The Reality Check', sub: "Tell me where you're stuck – I'll reply", href: 'https://fabriziacosta.com/realitycheck' },
   { label: 'All my content, for free', sub: 'YouTube · @stopfckingabout', href: 'https://youtube.com/@stopfckingabout' },
   { label: 'Meet Fab 🐧', sub: 'fabriziacosta.com', href: 'https://fabriziacosta.com' },
-  { label: 'Something not working? Tell me', sub: 'fab@fabriziacosta.com', href: 'mailto:fab@fabriziacosta.com?subject=Zatsuma%20beta' },
 ];
+/* the feedback catch-all always sits dead last, below the settings */
+const CONTACT_LINK = { label: 'Something not working? Tell me', sub: 'fab@fabriziacosta.com', href: 'mailto:fab@fabriziacosta.com?subject=Zatsuma%20beta' };
 
 function renderMore() {
   const startRow = `
@@ -324,11 +325,13 @@ function renderMore() {
       <div class="mr-text"><span class="mr-label">Number format</span><span class="mr-sub">${numFmt() === 'comma' ? '1.234,56' : '1,234.56'}</span></div>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
     </button>`;
-  const rows = MORE_LINKS.map(l => `
+  const linkRow = l => `
     <a class="morerow" href="${l.href}" target="_blank" rel="noopener">
       <div class="mr-text"><span class="mr-label">${l.label}</span><span class="mr-sub">${l.sub}</span></div>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M7 7h10v10"/></svg>
-    </a>`).join('');
+    </a>`;
+  const rows = MORE_LINKS.map(linkRow).join('');
+  const contactRow = linkRow(CONTACT_LINK);
 
   $view.innerHTML = `<div class="screen">
     <div class="screen-title">MORE FROM FAB</div>
@@ -336,6 +339,7 @@ function renderMore() {
     ${rows}
     ${catsRow}
     ${numfmtRow}
+    ${contactRow}
   </div>`;
 }
 

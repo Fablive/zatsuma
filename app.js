@@ -950,7 +950,7 @@ function renderGate() {
     <input type="email" id="acc-email2" placeholder="your email again 😉" autocomplete="off" autocapitalize="off" spellcheck="false">
     <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
     <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
-    <label class="consent"><input type="checkbox" id="acc-consent"> Yes, I want Fab's emails 🐧</label>
+    <div class="gconsent">Zatsuma is free. Using it puts you on my email list – unsubscribe any time you like 🐧</div>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
     <div class="gnote">Pop your email in twice<br>so a typo can't sneak in.</div>
@@ -974,7 +974,9 @@ function renderGate() {
       return;
     }
     const country = document.getElementById('acc-country').value.trim();
-    const consent = document.getElementById('acc-consent').checked;
+    /* emails are part of using the app now – no opt-out checkbox; the signup
+       notice states it plainly and every email carries an unsubscribe link. */
+    const consent = true;
     finishAccount(email, name, country, consent);
   });
 }

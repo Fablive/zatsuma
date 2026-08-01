@@ -61,7 +61,10 @@ function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-function fmt(n) { return n.toLocaleString('en-GB', { maximumFractionDigits: 2 }); }
+/* Display numbers the way this phone writes them: UK shows 1,234.56, Italy shows
+   1.234,56. Passing no locale (undefined) tells the browser to use the device's
+   own setting, so the display matches the comma/point the person just typed. */
+function fmt(n) { return n.toLocaleString(undefined, { maximumFractionDigits: 2 }); }
 
 /* what this phone uses as its decimal mark: "," in Italy/most of Europe, "." in UK/US */
 function localeDecimalSep() {

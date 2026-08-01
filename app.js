@@ -61,10 +61,24 @@ function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-/* Display numbers the way this phone writes them: UK shows 1,234.56, Italy shows
-   1.234,56. Passing no locale (undefined) tells the browser to use the device's
-   own setting, so the display matches the comma/point the person just typed. */
-function fmt(n) { return n.toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+/* Which way this person writes numbers: 'point' = 1,234.56 (UK/US), 'comma' =
+   1.234,56 (Italy/most of Europe). iOS keeps the keyboard (comma) on the Region
+   setting but reports Language for formatting, so a phone set to English + Italy
+   types commas yet auto-detects as English. We can't trust the OS, so this is a
+   stored choice – guessed from the phone on first run, changeable in MORE. */
+const NUMFMT_KEY = 'zatsuma-numfmt-v1';
+function numFmt() {
+  const v = localStorage.getItem(NUMFMT_KEY);
+  if (v === 'point' || v === 'comma') return v;
+  return localeDecimalSep() === ',' ? 'comma' : 'point'; // first-run guess
+}
+function fmt(n) {
+  const [thou, dec] = numFmt() === 'comma' ? ['.', ','] : [',', '.'];
+  let [int, frac] = (Math.round(Math.abs(n) * 100) / 100).toFixed(2).split('.');
+  frac = frac.replace(/0+$/, '');                       // 1,234.50 → 1,234.5 ; 1,234.00 → 1,234
+  int = int.replace(/\B(?=(\d{3})+(?!\d))/g, thou);      // group thousands
+  return (n < 0 ? '-' : '') + int + (frac ? dec + frac : '');
+}
 
 /* what this phone uses as its decimal mark: "," in Italy/most of Europe, "." in UK/US */
 function localeDecimalSep() {
@@ -305,6 +319,11 @@ function renderMore() {
       <div class="mr-text"><span class="mr-label">Categories</span><span class="mr-sub">Rename, recolour or remove</span></div>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
     </button>`;
+  const numfmtRow = `
+    <button class="morerow" data-act="show-numfmt">
+      <div class="mr-text"><span class="mr-label">Number format</span><span class="mr-sub">${numFmt() === 'comma' ? '1.234,56' : '1,234.56'}</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </button>`;
   const rows = MORE_LINKS.map(l => `
     <a class="morerow" href="${l.href}" target="_blank" rel="noopener">
       <div class="mr-text"><span class="mr-label">${l.label}</span><span class="mr-sub">${l.sub}</span></div>
@@ -314,8 +333,9 @@ function renderMore() {
   $view.innerHTML = `<div class="screen">
     <div class="screen-title">MORE FROM FAB</div>
     ${startRow}
-    ${catsRow}
     ${rows}
+    ${catsRow}
+    ${numfmtRow}
   </div>`;
 }
 
@@ -623,6 +643,24 @@ function deleteCategory() {
   render();
 }
 
+/* ----- number format sheet ----- */
+
+function openNumFmtSheet() {
+  const cur = numFmt();
+  const opt = (val, sample, note) => `
+    <button class="numfmt-opt ${cur === val ? 'on' : ''}" data-numfmt="${val}">
+      <span class="nf-sample">${sample}</span>
+      <span class="nf-note">${note}</span>
+      ${cur === val ? '<svg class="nf-tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5 9-11"/></svg>' : ''}
+    </button>`;
+  openSheet(`
+    <div class="sheet-head">NUMBER FORMAT</div>
+    <div class="hint" style="margin: 0 0 14px">How your amounts show throughout the app.</div>
+    ${opt('point', '1,234.56', 'UK · US')}
+    ${opt('comma', '1.234,56', 'EU')}
+  `);
+}
+
 /* ---------- events ---------- */
 
 document.querySelector('nav.tabs').addEventListener('click', e => {
@@ -655,6 +693,7 @@ $view.addEventListener('click', e => {
     if (a === 'export') exportCSV();
     if (a === 'show-start') renderStart();
     if (a === 'show-cats') { view = 'categories'; render(); }
+    if (a === 'show-numfmt') openNumFmtSheet();
     if (a === 'back-more') { view = 'more'; render(); }
     if (a === 'add-cat') openCategorySheet(null);
     return;
@@ -696,6 +735,9 @@ $sheet.addEventListener('click', e => {
 
   const csw = e.target.closest('[data-catcolour]');
   if (csw) { catSheet.color = csw.dataset.catcolour; renderCatSwatches(); return; }
+
+  const nf = e.target.closest('[data-numfmt]');
+  if (nf) { localStorage.setItem(NUMFMT_KEY, nf.dataset.numfmt); closeSheet(); render(); return; }
 
   const act = e.target.closest('[data-act]');
   if (!act) return;

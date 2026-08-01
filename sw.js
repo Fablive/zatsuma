@@ -8,7 +8,7 @@
    the cache is only the offline safety net, refreshed on each successful fetch.
    Bump it when you want to force-clear old offline copies. */
 
-const CACHE_VERSION = 'v56';
+const CACHE_VERSION = 'v57';
 const CACHE = `zatsuma-${CACHE_VERSION}`;
 const CORE = ['./', './index.html', './app.js', './style.css', './manifest.json'];
 

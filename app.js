@@ -572,18 +572,27 @@ function celebrate() {
 
 function openGoalSheet(mk) {
   const existing = db.goals[mk];
+  /* GOAL sits first, right under the head, so the number stays in the top of the
+     sheet – clear of the keyboard – exactly like the amount on Add Entry. The
+     month picker is a wheel, not the keyboard, so it's happy lower down. */
   openSheet(`
     <div class="sheet-head">${existing ? 'EDIT GOAL' : 'SET A GOAL'}</div>
-    <div class="sheet-label">MONTH</div>
-    <input type="month" class="month-input" id="g-month" value="${mk}">
     <div class="sheet-label">GOAL</div>
     <input class="amt-input" id="g-amt" inputmode="decimal" placeholder="0" value="${existing || ''}">
+    <div class="sheet-label">MONTH</div>
+    <input type="month" class="month-input" id="g-month" value="${mk}">
     <div class="sheet-actions">
       <button class="btn" data-act="save-goal">SAVE</button>
       ${existing ? '<button class="btn danger" data-act="delete-goal">REMOVE</button>' : ''}
     </div>
   `);
-  setTimeout(() => document.getElementById('g-amt').focus(), 280);
+  /* focus and, when there's an old number, select it – so typing replaces it
+     cleanly and she can see exactly what she's changing. */
+  setTimeout(() => {
+    const el = document.getElementById('g-amt');
+    el.focus();
+    if (existing) el.select();
+  }, 280);
 }
 
 function saveGoal() {

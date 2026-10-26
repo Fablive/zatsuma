@@ -199,7 +199,7 @@ function renderHome() {
     : `<div class="goalsetter">
         <div class="gs-label">SET A GOAL FOR ${monthLabel(curMonth).split(' ')[0]}</div>
         <div class="gs-row">
-          <input id="gs-amt" inputmode="decimal" placeholder="0">
+          <input id="gs-amt" inputmode="decimal" enterkeyhint="done" placeholder="0">
           <button class="btn small" data-act="set-goal-inline">SET</button>
         </div>
       </div>`;
@@ -227,7 +227,7 @@ function renderHome() {
         <circle r="38" cx="50" cy="50" fill="none" stroke="#f1ece1" stroke-width="13"/>
         ${segs}
       </svg>
-      <div class="donut-centre"><div class="amt">${fmt(total)}</div></div>
+      <div class="donut-centre"><div class="amt" style="--amt:${amtSize(fmt(total))}cqw">${fmt(total)}</div></div>
     </div></div>
     <div class="legend">${totals.map(({ cat: c }) =>
       `<span><i style="background:${c.color}"></i>${esc(c.name)}</span>`).join('')}</div>
@@ -239,6 +239,9 @@ function renderHome() {
     ${cheer}
   </div>`;
 }
+
+/* big totals shrink to stay inside the donut hole (about 60% of its width) */
+function amtSize(txt) { return Math.min(17, 60 / (txt.length * 0.56)).toFixed(1); }
 
 /* ----- ENTRIES ----- */
 
@@ -330,6 +333,16 @@ function renderMore() {
       <div class="mr-text"><span class="mr-label">${l.label}</span><span class="mr-sub">${l.sub}</span></div>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M7 7h10v10"/></svg>
     </a>`;
+  const backupRow = `
+    <button class="morerow" data-act="backup">
+      <div class="mr-text"><span class="mr-label">Save a backup</span><span class="mr-sub">Your numbers live on this phone only – keep a copy</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+    </button>
+    <button class="morerow" data-act="restore">
+      <div class="mr-text"><span class="mr-label">Restore a backup</span><span class="mr-sub">New phone? Bring your numbers with you</span></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V9M7 14l5-5 5 5M5 4h14"/></svg>
+    </button>
+    <input type="file" id="restore-file" accept=".json,application/json" hidden>`;
   const rows = MORE_LINKS.map(linkRow).join('');
   const contactRow = linkRow(CONTACT_LINK);
 
@@ -339,6 +352,7 @@ function renderMore() {
     ${rows}
     ${catsRow}
     ${numfmtRow}
+    ${backupRow}
     ${contactRow}
   </div>`;
 }
@@ -442,21 +456,75 @@ function exportCSV() {
     .concat(list.map(e => [e.date, e.kind,
       e.kind === 'value' ? 'Value' : (cat(e.catId) || UNCAT).name, e.amount]))
     .map(r => r.map(q).join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([rows], { type: 'text/csv' }));
-  a.download = `zatsuma-${label.toLowerCase().replace(/\s+/g, '-')}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  saveFile(new Blob([rows], { type: 'text/csv' }), `zatsuma-${label.toLowerCase().replace(/\s+/g, '-')}.csv`);
 }
+
+/* Hand a file to the person. On iPhone a plain download from a home-screen app
+   goes nowhere useful, so use the share sheet there (Save to Files, AirDrop,
+   email…). Everywhere else a normal download is what people expect. */
+async function saveFile(blob, filename) {
+  const file = new File([blob], filename, { type: blob.type });
+  if (isIOS && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000); // revoking straight away kills the download on some Androids
+}
+
+/* ----- backup + restore -----
+   Everything lives in this phone's browser storage, so a lost or swapped phone
+   means lost numbers. A backup is the whole lot in one small file. */
+
+function backup() {
+  const payload = { app: 'zatsuma', version: 1, exportedAt: new Date().toISOString(), numfmt: numFmt(), data: db };
+  saveFile(new Blob([JSON.stringify(payload)], { type: 'application/json' }), `zatsuma-backup-${todayStr()}.json`);
+}
+
+function readBackup(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    let b;
+    try { b = JSON.parse(r.result); } catch (e) { b = null; }
+    const d = b && b.app === 'zatsuma' && b.data;
+    if (!d || !Array.isArray(d.categories) || !Array.isArray(d.entries) || typeof d.goals !== 'object') {
+      openSheet(`<div class="sheet-head">RESTORE</div>
+        <div class="hint" style="margin-bottom:8px">That file isn't a Zatsuma backup. Look for one called zatsuma-backup-….json</div>
+        <div class="sheet-actions"><button class="btn" data-act="close-sheet">OK</button></div>`);
+      return;
+    }
+    pendingRestore = b;
+    const when = new Date(b.exportedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const n = d.entries.length;
+    openSheet(`<div class="sheet-head">RESTORE BACKUP</div>
+      <div class="hint" style="margin-bottom:8px">Backup from ${esc(when)} with ${n} ${n === 1 ? 'entry' : 'entries'}.<br>It replaces everything on this phone right now.</div>
+      <div class="sheet-actions">
+        <button class="btn" data-act="do-restore">RESTORE</button>
+        <button class="btn ghost" data-act="close-sheet">CANCEL</button>
+      </div>`);
+  };
+  r.readAsText(file);
+}
+let pendingRestore = null;
 
 /* ---------- bottom sheets ---------- */
 
 function openSheet(html) {
-  $sheet.innerHTML = html;
+  $sheet.innerHTML = `<div class="grabber" aria-hidden="true"></div>` + html;
+  $sheet.scrollTop = 0;
+  if (!$sheet.classList.contains('open')) pushLayer('sheet');
   $scrim.classList.add('open');
   $sheet.classList.add('open');
 }
 function closeSheet() {
+  if ($sheet.classList.contains('open')) dropLayer('sheet');
+}
+function hideSheet() {
   $scrim.classList.remove('open');
   $sheet.classList.remove('open');
   $sheet.style.bottom = '';
@@ -483,7 +551,7 @@ function openEntrySheet(entry) {
       <button class="money" data-kind="money">MONEY</button>
       <button class="value" data-kind="value">VALUE</button>
     </div>
-    <input class="amt-input" id="e-amt" inputmode="decimal" placeholder="0"
+    <input class="amt-input" id="e-amt" inputmode="decimal" enterkeyhint="done" placeholder="0"
       value="${entry ? entry.amount : ''}">
     <div class="hint" id="kind-hint"></div>
     <div id="catsec">
@@ -491,7 +559,7 @@ function openEntrySheet(entry) {
     <div class="catgrid" id="catgrid"></div>
     <div class="newcat" id="newcat" hidden>
       <div class="sheet-label" style="margin-top:0">NEW CATEGORY</div>
-      <input class="name-input" id="nc-name" placeholder="Name" maxlength="24">
+      <input class="name-input" id="nc-name" placeholder="Name" maxlength="24" enterkeyhint="done" autocapitalize="words">
       <div class="sheet-label">COLOUR</div>
       <div class="swatches" id="nc-swatches"></div>
       <div class="sheet-actions" style="margin-top:14px">
@@ -507,7 +575,29 @@ function openEntrySheet(entry) {
     </div>
   `);
   refreshEntrySheet();
-  if (!entry) setTimeout(() => document.getElementById('e-amt').focus(), 280);
+  if (!entry) focusField('e-amt');
+}
+
+/* Focus straight away, inside the tap that opened the sheet: iPhone only raises
+   the keyboard for focus that happens during the tap itself, so the old
+   wait-then-focus left people tapping the amount a second time. */
+function focusField(id, selectAll) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.focus({ preventScroll: true });
+  if (selectAll) el.select();
+}
+
+/* destructive buttons need a second tap – one stray thumb shouldn't wipe an entry */
+function confirmed(btn) {
+  if (btn.classList.contains('armed')) return true;
+  const label = btn.textContent;
+  btn.classList.add('armed');
+  btn.textContent = 'TAP TO CONFIRM';
+  setTimeout(() => {
+    if (btn.isConnected) { btn.classList.remove('armed'); btn.textContent = label; }
+  }, 3000);
+  return false;
 }
 
 function refreshEntrySheet() {
@@ -559,6 +649,7 @@ function saveEntry() {
 
 /* the header satsuma blinks + flutters its leaves when money lands */
 function celebrate() {
+  if (navigator.vibrate) navigator.vibrate(12); // tiny buzz on Android; iPhone ignores it
   const logo = document.querySelector('header .logo');
   if (!logo) return;
   logo.classList.remove('celebrate');
@@ -578,7 +669,7 @@ function openGoalSheet(mk) {
   openSheet(`
     <div class="sheet-head">${existing ? 'EDIT GOAL' : 'SET A GOAL'}</div>
     <div class="sheet-label">GOAL</div>
-    <input class="amt-input" id="g-amt" inputmode="decimal" placeholder="0" value="${existing || ''}">
+    <input class="amt-input" id="g-amt" inputmode="decimal" enterkeyhint="done" placeholder="0" value="${existing || ''}">
     <div class="sheet-label">MONTH</div>
     <input type="month" class="month-input" id="g-month" value="${mk}">
     <div class="sheet-actions">
@@ -588,11 +679,7 @@ function openGoalSheet(mk) {
   `);
   /* focus and, when there's an old number, select it – so typing replaces it
      cleanly and she can see exactly what she's changing. */
-  setTimeout(() => {
-    const el = document.getElementById('g-amt');
-    el.focus();
-    if (existing) el.select();
-  }, 280);
+  focusField('g-amt', !!existing);
 }
 
 function saveGoal() {
@@ -615,7 +702,7 @@ function openCategorySheet(c) {
   openSheet(`
     <div class="sheet-head">${c ? 'EDIT CATEGORY' : 'NEW CATEGORY'}</div>
     <div class="sheet-label">NAME</div>
-    <input class="name-input" id="cat-name" placeholder="Name" maxlength="24" value="${c ? esc(c.name) : ''}">
+    <input class="name-input" id="cat-name" placeholder="Name" maxlength="24" enterkeyhint="done" autocapitalize="words" value="${c ? esc(c.name) : ''}">
     <div class="sheet-label">COLOUR</div>
     <div class="swatches" id="cat-swatches"></div>
     <div class="sheet-actions">
@@ -625,7 +712,7 @@ function openCategorySheet(c) {
     ${c && n ? `<div class="hint">Deleting keeps your ${n} ${n === 1 ? 'entry' : 'entries'} – they just move to Uncategorised.</div>` : ''}
   `);
   renderCatSwatches();
-  setTimeout(() => document.getElementById('cat-name').focus(), 280);
+  if (!c) focusField('cat-name'); // editing is often just a colour change – don't throw the keyboard up
 }
 
 function renderCatSwatches() {
@@ -676,13 +763,57 @@ function openNumFmtSheet() {
 
 /* ---------- events ---------- */
 
+/* ---------- back button (Android) ----------
+   Each sheet, sub-screen or overlay gets its own history entry, so the phone's
+   back button or gesture closes that thing instead of closing the whole app.
+   layers mirrors the entries we've pushed, one kind per entry. */
+
+const layers = []; // 'sheet' | 'view' | 'gate'
+
+function pushLayer(kind) {
+  layers.push(kind);
+  history.pushState({ zl: layers.length }, '');
+}
+/* closed from inside the app: undo it now, then quietly step history back to match */
+function dropLayer(kind) {
+  if (layers[layers.length - 1] === kind) { layers.pop(); history.back(); }
+  undoLayer(kind);
+}
+function undoLayer(kind) {
+  if (kind === 'sheet') hideSheet();
+  else if (kind === 'gate') document.getElementById('gate').hidden = true;
+  else if (kind === 'view') { view = view === 'categories' ? 'more' : 'home'; render(); }
+}
+window.addEventListener('popstate', e => {
+  const target = (e.state && e.state.zl) || 0;
+  while (layers.length > target) undoLayer(layers.pop());
+});
+
+/* HOME is the bottom of the stack; any other tab sits one step above it,
+   Categories one more step above MORE */
+function goView(v) {
+  if (v === view) return;
+  if (v === 'home') {
+    if (layers.length) { history.go(-layers.length); layers.length = 0; }
+  } else if (v === 'categories') {
+    pushLayer('view');
+  } else if (!layers.length) {
+    pushLayer('view');
+  } else if (layers.length > 1) {
+    history.go(-(layers.length - 1)); layers.length = 1;
+  }
+  view = v;
+  render();
+  $view.scrollTop = 0;
+}
+
 document.querySelector('nav.tabs').addEventListener('click', e => {
   const t = e.target.closest('.tab');
-  if (t) { view = t.dataset.view; render(); }
+  if (t) goView(t.dataset.view);
 });
 
 document.getElementById('fab').addEventListener('click', () => openEntrySheet());
-document.getElementById('more-btn').addEventListener('click', () => { view = 'more'; render(); });
+document.getElementById('more-btn').addEventListener('click', () => goView('more'));
 $scrim.addEventListener('click', closeSheet);
 
 $view.addEventListener('click', e => {
@@ -704,11 +835,13 @@ $view.addEventListener('click', e => {
       render();
     }
     if (a === 'export') exportCSV();
-    if (a === 'show-start') renderStart();
-    if (a === 'show-cats') { view = 'categories'; render(); }
+    if (a === 'show-start') renderStart(true);
+    if (a === 'show-cats') goView('categories');
     if (a === 'show-numfmt') openNumFmtSheet();
-    if (a === 'back-more') { view = 'more'; render(); }
+    if (a === 'back-more') { if (layers.length > 1) dropLayer('view'); else goView('more'); }
     if (a === 'add-cat') openCategorySheet(null);
+    if (a === 'backup') backup();
+    if (a === 'restore') document.getElementById('restore-file').click();
     return;
   }
   const ce = e.target.closest('[data-cat-edit]');
@@ -719,7 +852,15 @@ $view.addEventListener('click', e => {
   if (gr) openGoalSheet(gr.dataset.goalMonth);
 });
 
+$view.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'gs-amt') {
+    e.preventDefault();
+    $view.querySelector('[data-act="set-goal-inline"]').click();
+  }
+});
+
 $view.addEventListener('change', e => {
+  if (e.target.id === 'restore-file' && e.target.files[0]) { readBackup(e.target.files[0]); e.target.value = ''; }
   if (e.target.id === 'rep-from') { rep.from = e.target.value; render(); }
   if (e.target.id === 'rep-to') { rep.to = e.target.value; render(); }
 });
@@ -771,16 +912,31 @@ $sheet.addEventListener('click', e => {
     refreshEntrySheet();
   }
   if (a === 'save-entry') saveEntry();
+  if (a === 'close-sheet') closeSheet();
+  if (a === 'do-restore' && pendingRestore) {
+    db = pendingRestore.data;
+    if (pendingRestore.numfmt) localStorage.setItem(NUMFMT_KEY, pendingRestore.numfmt);
+    pendingRestore = null;
+    save();
+    /* close the sheet and step all the way back to HOME in one history move */
+    hideSheet();
+    if (layers.length) { history.go(-layers.length); layers.length = 0; }
+    view = 'home';
+    render();
+    celebrate();
+  }
   if (a === 'delete-entry') {
+    if (!confirmed(act)) return;
     db.entries = db.entries.filter(x => x.id !== sheetState.id);
     save();
     closeSheet();
     render();
   }
   if (a === 'save-cat') saveCategory();
-  if (a === 'delete-cat') deleteCategory();
+  if (a === 'delete-cat' && confirmed(act)) deleteCategory();
   if (a === 'save-goal') saveGoal();
   if (a === 'delete-goal') {
+    if (!confirmed(act)) return;
     delete db.goals[document.getElementById('g-month').value];
     save();
     closeSheet();
@@ -788,21 +944,60 @@ $sheet.addEventListener('click', e => {
   }
 });
 
-/* ---------- keyboard taming (iOS only) ----------
-   iOS Safari shrinks the *visual* viewport when the keyboard opens but
-   leaves window.innerHeight (the layout viewport) unchanged, so nothing
-   reflows around the keyboard on its own – that's what this lifts the
-   sheet to fix. Android resizes the layout viewport itself when its
-   keyboard opens, so this same visualViewport math fights the browser's
-   own correct reflow instead of helping – that's what was leaving the
-   Add Entry sheet stuck on Android. Gate it to iOS only. */
+/* the keyboard's Done/Enter key closes the keyboard (or saves, where that's all that's left) */
+$sheet.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+  e.preventDefault();
+  if (e.target.id === 'g-amt') saveGoal();
+  else if (e.target.id === 'cat-name') saveCategory();
+  else if (e.target.id === 'nc-name') $sheet.querySelector('[data-act="create-cat"]').click();
+  else e.target.blur();
+});
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+/* drag the sheet down by its handle or title to close it */
+let drag = null;
+$sheet.addEventListener('pointerdown', e => {
+  if (!e.target.closest('.grabber, .sheet-head')) return;
+  drag = { y: e.clientY, t: e.timeStamp, dy: 0 };
+  $sheet.classList.add('dragging');
+  $sheet.setPointerCapture(e.pointerId);
+});
+$sheet.addEventListener('pointermove', e => {
+  if (!drag) return;
+  drag.dy = Math.max(0, e.clientY - drag.y);
+  $sheet.style.transform = `translateY(${drag.dy}px)`;
+});
+function endDrag(e) {
+  if (!drag) return;
+  const speed = drag.dy / Math.max(1, e.timeStamp - drag.t);
+  const shut = drag.dy > 90 || (speed > 0.5 && drag.dy > 30);
+  drag = null;
+  $sheet.classList.remove('dragging');
+  $sheet.style.transform = ''; // animates from where the finger left it
+  if (shut) closeSheet();
+}
+$sheet.addEventListener('pointerup', endDrag);
+$sheet.addEventListener('pointercancel', endDrag);
 
-if (isIOS && window.visualViewport) {
+/* ---------- keyboard taming ----------
+   iPhone shrinks only the *visual* viewport when the keyboard opens and leaves
+   the layout alone, so nothing moves out of the keyboard's way by itself – this
+   lifts the sheet above it. Android Chrome used to resize the whole layout, but
+   since late 2022 it behaves like iPhone by default, which is why sheets and
+   the sign-up form ended up hidden behind the keyboard there. The viewport tag
+   in index.html (interactive-widget=resizes-content) now tells Android to
+   shrink the layout properly; this lift stays on for every phone as the safety
+   net for browsers that ignore that tag. Where the layout did shrink, the gap
+   below works out to ~0 and nothing is lifted. */
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPads say they're Macs
+
+if (window.visualViewport) {
   const vv = window.visualViewport;
   const lift = () => {
-    const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    let kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    if (kb < 120) kb = 0; // address bar wobble, not a keyboard
     $sheet.style.bottom = kb ? kb + 'px' : '';
     $sheet.style.maxHeight = kb ? Math.round(vv.height * 0.92) + 'px' : '';
     /* sign-up screen: shrink it to exactly the space above the keyboard and pin it
@@ -827,9 +1022,15 @@ if (isIOS && window.visualViewport) {
   vv.addEventListener('resize', lift);
   vv.addEventListener('scroll', lift);
 }
+/* while typing on a main screen, the tabs + FAB step aside (Android would
+   otherwise float them up on top of the keyboard) */
+document.addEventListener('focusin', e => {
+  if (e.target.tagName === 'INPUT') document.body.classList.add('typing');
+});
 window.addEventListener('focusout', () => setTimeout(() => {
   /* nothing focused any more? keyboard is gone – clear the lift and re-anchor */
   const el = document.activeElement;
+  if (!el || el.tagName !== 'INPUT') document.body.classList.remove('typing');
   if (!el || el === document.body || !$sheet.contains(el)) {
     $sheet.style.bottom = '';
     $sheet.style.maxHeight = '';
@@ -899,7 +1100,7 @@ function privacyAcked() { return !!localStorage.getItem(PRIV_KEY); }
 const START_KEY = 'zatsuma-start-seen-v1';
 function startSeen() { return !!localStorage.getItem(START_KEY); }
 
-function renderStart() {
+function renderStart(fromMore) {
   const gate = document.getElementById('gate');
   gate.innerHTML = `
     ${document.querySelector('header .logo').outerHTML.replace('class="logo"', 'class="glogo"')}
@@ -914,9 +1115,11 @@ function renderStart() {
     <button class="btn" id="start-go">GOT IT, LET'S GO</button>
   `;
   gate.hidden = false;
+  gate.scrollTop = 0;
+  if (fromMore) pushLayer('gate');
   document.getElementById('start-go').addEventListener('click', () => {
     localStorage.setItem(START_KEY, new Date().toISOString());
-    gate.hidden = true;
+    if (fromMore) dropLayer('gate'); else gate.hidden = true;
   });
 }
 
@@ -946,33 +1149,44 @@ function renderGate() {
     <div class="gword">ZATSUMA</div>
     <div class="gtag">track your money – watch it grow</div>
     <div class="gdots"><span></span><span></span><span></span><span></span></div>
-    <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email" autocapitalize="off" spellcheck="false">
-    <input type="email" id="acc-email2" placeholder="your email again 😉" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <input type="text" id="acc-name" placeholder="your name" autocomplete="name">
-    <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name">
+    <input type="email" id="acc-email" placeholder="your@email.com" autocomplete="email" autocapitalize="off" spellcheck="false" enterkeyhint="next">
+    <input type="email" id="acc-email2" placeholder="your email again 😉" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="next">
+    <input type="text" id="acc-name" placeholder="your name" autocomplete="name" autocapitalize="words" enterkeyhint="next">
+    <input type="text" id="acc-country" placeholder="your country" autocomplete="country-name" autocapitalize="words" enterkeyhint="go">
     <div class="gconsent">Zatsuma is free. Using it puts you on my email list – unsubscribe any time you like 🐧</div>
     <div class="gerr" id="acc-err"></div>
     <button class="btn" id="acc-go">COME ON IN</button>
     <div class="gnote">Pop your email in twice<br>so a typo can't sneak in.</div>
   `;
   gate.hidden = false;
+  gate.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+    e.preventDefault();
+    const fields = [...gate.querySelectorAll('input')];
+    const next = fields[fields.indexOf(e.target) + 1];
+    if (next) next.focus(); else document.getElementById('acc-go').click();
+  });
   document.getElementById('acc-go').addEventListener('click', () => {
     const email = document.getElementById('acc-email').value.trim().toLowerCase();
     const email2 = document.getElementById('acc-email2').value.trim().toLowerCase();
     const err = document.getElementById('acc-err');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
       err.textContent = 'That email doesn’t look right yet';
+      document.getElementById('acc-email').focus();
       return;
     }
     if (email !== email2) {
       err.textContent = 'Those two emails don’t match – typo somewhere?';
+      document.getElementById('acc-email2').focus();
       return;
     }
     const name = document.getElementById('acc-name').value.trim();
     if (!name) {
       err.textContent = 'Add your name too';
+      document.getElementById('acc-name').focus();
       return;
     }
+    document.activeElement && document.activeElement.blur(); // drop the keyboard before the next screen
     const country = document.getElementById('acc-country').value.trim();
     /* emails are part of using the app now – no opt-out checkbox; the signup
        notice states it plainly and every email carries an unsubscribe link. */
@@ -989,7 +1203,20 @@ function hideSplash() {
 }
 
 (function boot() {
-  setTimeout(hideSplash, 3900);
+  /* the full show plays on the first open of the day; after that a quick
+     version, so logging a payment doesn't mean waiting four seconds every time.
+     A tap skips it either way. */
+  const SPLASH_KEY = 'zatsuma-splash-day';
+  let full = true;
+  try { full = localStorage.getItem(SPLASH_KEY) !== todayStr(); localStorage.setItem(SPLASH_KEY, todayStr()); } catch (e) {}
+  const splash = document.getElementById('splash');
+  if (!full) splash.classList.add('quick');
+  splash.addEventListener('click', hideSplash);
+  setTimeout(hideSplash, full ? 3900 : 1600);
+
+  /* ask the browser not to clear our storage when the phone is short on space */
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
   if (DEMO) { render(); return; }
 
   if (!account()) renderGate();

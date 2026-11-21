@@ -444,7 +444,7 @@ function renderReports() {
       <div class="stat value"><div class="k">VALUE</div><div class="v">${fmt(value)}</div></div>
     </div>
     <div class="catbars">${bars || '<div class="empty">Nothing in this period yet.</div>'}</div>
-    ${list.length ? `<div class="exportrow"><button class="btn ghost small" data-act="export">EXPORT CSV</button></div>` : ''}
+    ${list.length ? `<div class="exportrow"><button class="btn ghost small" data-act="export">EXPORT CSV</button>${claudeOn() ? '<button class="btn claude small" data-act="ask-claude">ASK CLAUDE</button>' : ''}</div>` : ''}
   </div>`;
 }
 
@@ -475,6 +475,92 @@ async function saveFile(blob, filename) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000); // revoking straight away kills the download on some Androids
+}
+
+/* ----- Ask Claude -----
+   Turns the period on the REPORTS screen into a short plain-text summary the
+   person can copy or open straight in Claude. Nothing leaves the phone until
+   they tap. TESTING: hidden for everyone until CLAUDE_FOR_ALL is true. Open the
+   app once with ?claude=1 to switch it on for that phone (?claude=0 turns it off). */
+const CLAUDE_FOR_ALL = false;
+const CLAUDE_KEY = 'zatsuma-claude-beta';
+(function () {
+  const f = new URLSearchParams(location.search).get('claude');
+  try {
+    if (f === '1') localStorage.setItem(CLAUDE_KEY, '1');
+    if (f === '0') localStorage.removeItem(CLAUDE_KEY);
+  } catch (e) {}
+})();
+function claudeOn() {
+  if (CLAUDE_FOR_ALL) return true;
+  try { return localStorage.getItem(CLAUDE_KEY) === '1'; } catch (e) { return false; }
+}
+
+function claudeSummary() {
+  const { from, to, label } = repRange();
+  const list = entriesInRange(from, to);
+  const money = sum(moneyOf(list)), value = sum(valueOf(list));
+  const period = rep.type === 'month'
+    ? monthDate(rep.anchor).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    : rep.type === 'all' ? 'all time'
+    : rep.type === 'custom' ? `${from} to ${to}` : label;
+  const lines = [`My Zatsuma numbers for ${period}:`];
+  lines.push(`Total ${fmt(money + value)} (money ${fmt(money)}, value ${fmt(value)})`);
+  if (rep.type === 'month' && db.goals[rep.anchor]) {
+    lines.push(`Goal ${fmt(db.goals[rep.anchor])}, reached ${fmt(money)}`);
+  }
+  const cats = catTotals(moneyOf(list)).map(t => `${t.cat.name} ${fmt(t.total)}`);
+  if (cats.length) lines.push(cats.join(' · '));
+  const days = {};
+  for (const e of list) days[e.date] = (days[e.date] || 0) + e.amount;
+  const best = Object.entries(days).sort((a, b) => b[1] - a[1])[0];
+  if (best) {
+    const [y, m, d] = best[0].split('-').map(Number);
+    lines.push(`Best day: ${new Date(y, m - 1, d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}, ${fmt(best[1])}`);
+  }
+  lines.push(`${list.length} ${list.length === 1 ? 'entry' : 'entries'} logged`);
+  if (['month', 'quarter', 'year'].includes(rep.type)) {
+    const by = rep.type === 'month' ? 1 : rep.type === 'quarter' ? 3 : 12;
+    const keep = rep.anchor;
+    rep.anchor = shiftMonth(keep, -by);
+    const prev = repRange();
+    rep.anchor = keep;
+    const pl = entriesInRange(prev.from, prev.to);
+    if (pl.length) {
+      const name = rep.type === 'month'
+        ? monthDate(shiftMonth(keep, -1)).toLocaleDateString('en-GB', { month: 'long' })
+        : prev.label;
+      lines.push(`${name} total: ${fmt(sum(pl))}`);
+    }
+  }
+  lines.push('', 'Help me see what these numbers say about my business. Ask me a couple of questions first.');
+  return lines.join('\n');
+}
+
+function openClaudeSheet() {
+  const text = claudeSummary();
+  openSheet(`<div class="sheet-head">ASK CLAUDE</div>
+    <div class="hint" style="margin:0 0 12px">Your numbers stay on this phone until you tap.</div>
+    <div class="claude-sum">${esc(text).replace(/\n/g, '<br>')}</div>
+    <div class="sheet-actions">
+      <button class="btn ghost" data-act="claude-copy">COPY</button>
+      <a class="btn claude" href="https://claude.ai/new?q=${encodeURIComponent(text)}" target="_blank" rel="noopener">OPEN CLAUDE</a>
+    </div>`);
+  $sheet.dataset.claudeText = text;
+}
+
+async function copyClaude(btn) {
+  const text = $sheet.dataset.claudeText || '';
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+    const t = document.createElement('textarea');
+    t.value = text; t.setAttribute('readonly', ''); t.style.position = 'absolute'; t.style.left = '-9999px';
+    document.body.appendChild(t); t.select();
+    try { ok = document.execCommand('copy'); } catch (e2) {}
+    t.remove();
+  }
+  btn.textContent = ok ? 'COPIED 🐧' : 'COPY FAILED';
+  setTimeout(() => { btn.textContent = 'COPY'; }, 2000);
 }
 
 /* ----- backup + restore -----
@@ -835,6 +921,7 @@ $view.addEventListener('click', e => {
       render();
     }
     if (a === 'export') exportCSV();
+    if (a === 'ask-claude') openClaudeSheet();
     if (a === 'show-start') renderStart(true);
     if (a === 'show-cats') goView('categories');
     if (a === 'show-numfmt') openNumFmtSheet();
@@ -896,6 +983,7 @@ $sheet.addEventListener('click', e => {
   const act = e.target.closest('[data-act]');
   if (!act) return;
   const a = act.dataset.act;
+  if (a === 'claude-copy') { copyClaude(act); return; }
   if (a === 'toggle-newcat') {
     sheetState.showNewCat = !sheetState.showNewCat;
     refreshEntrySheet();

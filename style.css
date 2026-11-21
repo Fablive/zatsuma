@@ -382,6 +382,11 @@ main {
 .btn.danger { color: var(--cat-pink); background: var(--paper); border: 1px solid var(--cat-pink); }
 .btn.danger.armed { color: #fff; background: var(--cat-pink); }
 .btn.small { padding: 9px 20px; font-size: 13px; }
+/* Ask Claude – Claude's clay orange, so it only ever means "this goes to Claude" */
+.btn.claude { background: #d97757; color: #fff; text-decoration: none; display: inline-block; }
+.btn.claude:active { background: #c4643f; }
+.exportrow { gap: 10px; }
+.claude-sum { background: var(--wash); border-radius: 12px; padding: 14px; font-size: 15px; line-height: 1.55; color: var(--ink); -webkit-user-select: text; user-select: text; }
 
 /* ---------- bottom tabs ---------- */
 nav.tabs {

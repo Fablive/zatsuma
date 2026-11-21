@@ -14,7 +14,7 @@
    the saved copy opens instantly and the fresh one still lands in the cache
    for next time. */
 
-const CACHE_VERSION = 'v60';
+const CACHE_VERSION = 'v61';
 const NETWORK_WAIT = 3000;
 const CACHE = `zatsuma-${CACHE_VERSION}`;
 const CORE = ['./', './index.html', './app.js', './style.css', './manifest.json'];

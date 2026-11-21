@@ -482,7 +482,7 @@ async function saveFile(blob, filename) {
    person can copy or open straight in Claude. Nothing leaves the phone until
    they tap. TESTING: hidden for everyone until CLAUDE_FOR_ALL is true. Open the
    app once with ?claude=1 to switch it on for that phone (?claude=0 turns it off). */
-const CLAUDE_FOR_ALL = false;
+const CLAUDE_FOR_ALL = true;
 const CLAUDE_KEY = 'zatsuma-claude-beta';
 (function () {
   const f = new URLSearchParams(location.search).get('claude');
